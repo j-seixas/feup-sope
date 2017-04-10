@@ -18,22 +18,21 @@ int main(int argc, char *argv[])
 		printf("Wrong Usage\n");
 		return 1;
 	}
-  //char* name;
-  int toPrint = 0/*, toDelete = 0, hasName = 0, hasType = 0, hasPerm = 0, hasExec = 0*/;
+	char *name = malloc(sizeof(char *));
+  int toPrint = 0, toDelete = 0, hasName = 0, hasType = 0, hasPerm = 0, hasExec = 0;
   int args = 3;
   while (args <= argc){
     if(!strcmp(argv[args-1] , "-print"))
       toPrint = 1;
-
-    /*else if(argv[args-1] == "-delete")
+    else if(!strcmp(argv[args-1] , "-delete"))
       toDelete = 1;
-    else if(argv[args-1] == "-name" && args+1 >= argc){
+    else if(!strcmp(argv[args-1] , "-name") && args+1 <= argc){
       hasName = 1;
-      name = argv[args];
-    } else if(argv[args-1] == "-name" && args+1 >= argc){
-      hasName = 1;
-      name = argc[args];
-    } */
+			strcpy(name,argv[args]);
+		//	printf("%d - %s\n", hasName, name);
+			args++;
+    }
+	//	printf("%d Name - %d Delete - %d Print\n", hasName, toDelete, toPrint);
     args++;
   }
 
@@ -80,8 +79,25 @@ int main(int argc, char *argv[])
 
   rewinddir(curr_dir);
   while ( (dir_info = readdir(curr_dir) ) != NULL){
-    if(toPrint)
-      printf("%d - %s/%s\n",getpid() ,  argv[1], dir_info->d_name );
+
+		if(hasName){
+			//printf("HAS NAME\n");
+			if(toPrint && !strcmp(name, dir_info->d_name))
+	      printf("%d - %s/%s\n",getpid() ,  argv[1], dir_info->d_name );
+			if(toDelete && !strcmp(name, dir_info->d_name)){
+				if( (pid = fork()) == 0){
+					int size = 1 + snprintf(NULL, 0, "%s/%s", argv[1], dir_info->d_name);
+        	argv_new[1] = malloc(size);
+        	snprintf(argv_new[1], size, "%s/%s", argv[1], dir_info->d_name);
+					execlp("rm", "-i", argv_new[1], NULL);
+					free(argv_new[1]);
+        	free(argv_new);
+        	printf("Error in process %d\n", getpid());
+					return 1;
+				}
+			}
+		} else if (toPrint)
+				printf("%d - %s/%s\n",getpid() ,  argv[1], dir_info->d_name );
   }
 
 	return 0;
