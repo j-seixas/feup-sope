@@ -18,9 +18,11 @@ typedef struct{
 } Flags;
 
 void initFlags(Flags *flags){
-  flags->name  = malloc(256 * sizeof(char));
-  flags->perm_mode = malloc(3 * sizeof(char));
-	flags->toPrint = 0;
+  flags->name = malloc(1024 * sizeof(char));
+  strcpy(flags->name, "");
+  flags->perm_mode = malloc(32 * sizeof(char));
+  strcpy(flags->name, "");
+  flags->toPrint = 0;
 	flags->toDelete = 0;
 	flags->hasName = 0;
 	flags->hasType = 0;
@@ -52,6 +54,7 @@ char isNumber(const char* str) {
 
 int main(int argc, char *argv[])
 {
+
 	if (argc < 2){
 		printf("Wrong Usage\n");
 		return 1;
@@ -89,17 +92,17 @@ int main(int argc, char *argv[])
 	struct dirent *dir_info;
 	int pid = 0;
 
-  char *temp = malloc(sizeof(char *));
-  strcpy(temp,argv[1]);
-	char *directory = strcat(temp,"/");
+  char *directory = malloc(1024 * sizeof(char));
+  strcpy(directory,argv[1]);
+	strcat(directory,"/");
 	//printf("Trying to open dir %s\n",directory);
 	if ( (curr_dir = opendir(directory))  == NULL){
-		perror("Error 1 ");
+		perror("Error: ");
 		exit(1);
 	}
 
   char **argv_new;
-  size_t a_size = sizeof *argv_new * (argc + 1);  // + 1 for the final NULL
+  size_t a_size = sizeof(char*) * (argc + 1);
   argv_new = malloc(a_size);
   memcpy(argv_new, argv, a_size);
 
