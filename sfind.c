@@ -11,6 +11,20 @@
 #include <string.h>
 
 
+typedef struct{
+  char *name;
+  int toPrint, toDelete, hasName, hasType, hasPerm, hasExec;
+} Flags;
+
+void initFlags(Flags *flag){
+	flag->name  = malloc(sizeof(char *));
+	flag->toPrint = 0;
+	flag->toDelete = 0;
+	flag->hasName = 0;
+	flag->hasType = 0;
+	flag->hasPerm = 0;
+	flag->hasExec = 0;
+}
 
 int main(int argc, char *argv[])
 {
@@ -18,17 +32,19 @@ int main(int argc, char *argv[])
 		printf("Wrong Usage\n");
 		return 1;
 	}
-	char *name = malloc(sizeof(char *));
-  int toPrint = 0, toDelete = 0, hasName = 0, hasType = 0, hasPerm = 0, hasExec = 0;
+
+  Flags flags;
+	initFlags(&flags);
+
   int args = 3;
   while (args <= argc){
     if(!strcmp(argv[args-1] , "-print"))
-      toPrint = 1;
+      flags.toPrint = 1;
     else if(!strcmp(argv[args-1] , "-delete"))
-      toDelete = 1;
+      flags.toDelete = 1;
     else if(!strcmp(argv[args-1] , "-name") && args+1 <= argc){
-      hasName = 1;
-			strcpy(name,argv[args]);
+      flags.hasName = 1;
+			strcpy(flags.name,argv[args]);
 		//	printf("%d - %s\n", hasName, name);
 			args++;
     }
@@ -80,11 +96,18 @@ int main(int argc, char *argv[])
   rewinddir(curr_dir);
   while ( (dir_info = readdir(curr_dir) ) != NULL){
 
-		if(hasName){
+		if(flags.hasName){
 			//printf("HAS NAME\n");
-			if(toPrint && !strcmp(name, dir_info->d_name))
-	      printf("%d - %s/%s\n",getpid() ,  argv[1], dir_info->d_name );
-			if(toDelete && !strcmp(name, dir_info->d_name)){
+
+			if(!strcmp(flags.name, dir_info->d_name) && flags.toPrint)
+				printf("%d - %s/%s   <---- FOUND\n",getpid() ,  argv[1], dir_info->d_name );
+			else if(!strcmp(flags.name, dir_info->d_name) && !flags.toPrint)
+				printf("%d - %s/%s\n",getpid() ,  argv[1], dir_info->d_name );
+			else if(flags.toPrint)
+				printf("%d - %s/%s\n",getpid() ,  argv[1], dir_info->d_name );
+
+
+			if(flags.toDelete && !strcmp(flags.name, dir_info->d_name)){
 				if( (pid = fork()) == 0){
 					int size = 1 + snprintf(NULL, 0, "%s/%s", argv[1], dir_info->d_name);
         	argv_new[1] = malloc(size);
@@ -96,7 +119,7 @@ int main(int argc, char *argv[])
 					return 1;
 				}
 			}
-		} else if (toPrint)
+		} else if (flags.toPrint)
 				printf("%d - %s/%s\n",getpid() ,  argv[1], dir_info->d_name );
   }
 
