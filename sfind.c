@@ -54,18 +54,20 @@ char isNumber(const char* str) {
 
 void sigint_handler(int sign){
   char c;
-  printf("\n\n Are you sure you want to terminate? ");
-  scanf("%c", &c);
+  do{
+      printf("\n\n Are you sure you want to terminate? ");
+      scanf("%c", &c);
+  
+      if(c == 'y' || c == 'Y')
+        exit(0);
+      else if(c == 'n' || c == 'N')
+        return;
+      else
+        printf("Error! Not found a valid answer!\n");
 
-  if(c == 'y' || c == 'Y')
-    exit(0);
-  else if(c == 'n' || c == 'N')
-    return;
-  else{
-    printf("Error! Not found a valid answer!\n");
-    sigint_handler(sign);
-  }
+  }while( 1 );
 }
+  
 
 int main(int argc, char *argv[])
 {
@@ -114,7 +116,7 @@ int main(int argc, char *argv[])
 	strcat(directory,"/");
 	//printf("Trying to open dir %s\n",directory);
 	if ( (curr_dir = opendir(directory))  == NULL){
-		perror("Error: ");
+		perror("Error 1: ");
 		exit(1);
 	}
 
@@ -123,9 +125,9 @@ int main(int argc, char *argv[])
   sigemptyset(&action.sa_mask);
   action.sa_flags = 0;
 
-  if (sigaction(SIGINT, &action, NULL) < 0){
-    fprintf(stderr,"Unable to install SIGINT handler\n");
-    exit(1);
+  if ( sigaction(SIGINT, &action, NULL) < 0 ){
+    perror("Error 2: ");
+    exit(2);
   }
 
   char **argv_new;
@@ -143,14 +145,14 @@ int main(int argc, char *argv[])
         snprintf(argv_new[1], size, "%s/%s", argv[1], dir_info->d_name);
 
         execv(argv_new[0], argv_new);
-        free(argv_new[1]);
-        free(argv_new);
-        printf("Error in process %d\n", getpid());
-
-        return 1;
+        perror("Error 3: ");
+        exit(3);
+      } 
+      else {
+        wait(NULL);
+        //free(argv_new[1]);
+        //free(argv_new);
       }
-
-
 		}
 	}
 
