@@ -21,7 +21,7 @@ void initFlags(Flags *flags){
   flags->name = malloc(1024 * sizeof(char));
   strcpy(flags->name, "");
   flags->perm_mode = malloc(32 * sizeof(char));
-  strcpy(flags->name, "");
+  strcpy(flags->perm_mode, "");
   flags->toPrint = 0;
 	flags->toDelete = 0;
 	flags->hasName = 0;
@@ -52,6 +52,21 @@ char isNumber(const char* str) {
   return 1;
 }
 
+void sigint_handler(int sign){
+  char c;
+  printf("\n\n Are you sure you want to terminate? ");
+  scanf("%c", &c);
+
+  if(c == 'y' || c == 'Y')
+    exit(0);
+  else if(c == 'n' || c == 'N')
+    return;
+  else{
+    printf("Error! Not found a valid answer!\n");
+    sigint_handler(sign);
+  }
+}
+
 int main(int argc, char *argv[])
 {
 
@@ -69,14 +84,16 @@ int main(int argc, char *argv[])
       flags.toPrint = 1;
     else if(!strcmp(argv[args] , "-delete"))
       flags.toDelete = 1;
-    else if(!strcmp(argv[args] , "-name"))
+    else if(!strcmp(argv[args] , "-name") && args+1 < argc){
       flags.hasName = 1;
-    else if(!strcmp(argv[args] , "-perm"))
+      strcpy(flags.name, argv[args+1]);
+      args++;
+    }else if(!strcmp(argv[args] , "-perm") && args+1 < argc){
       flags.hasPerm = 1;
-    else if(isNumber(argv[args]))
-      strcpy(flags.perm_mode, argv[args]);
-    else
-      strcpy(flags.name, argv[args]);
+      if(isNumber(argv[args+1]))
+        strcpy(flags.perm_mode, argv[args+1]);
+      args++;
+    }
     args++;
   }
 
@@ -100,6 +117,16 @@ int main(int argc, char *argv[])
 		perror("Error: ");
 		exit(1);
 	}
+
+  struct sigaction action;
+  action.sa_handler = sigint_handler;
+  sigemptyset(&action.sa_mask);
+  action.sa_flags = 0;
+
+  if (sigaction(SIGINT, &action, NULL) < 0){
+    fprintf(stderr,"Unable to install SIGINT handler\n");
+    exit(1);
+  }
 
   char **argv_new;
   size_t a_size = sizeof(char*) * (argc + 1);
