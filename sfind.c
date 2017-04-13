@@ -185,23 +185,31 @@ int main(int argc, char *argv[])
                        ((dir_info->d_type == DT_DIR) && (flags.type == 'd')) ||
                        ((dir_info->d_type == DT_LNK) && (flags.type == 'l'));
 
-      //Check if the current file/directory should be printed
-      if((flags.hasName && same_name) ||
-         (flags.hasPerm && same_perm) ||
-         (flags.hasType && same_type)) {
-            printf("\n%s\n", full_name);
+      //Check if the current file/directory respects every restriction
+      char respects_restrictions = (!flags.hasName || (flags.hasName && same_name)) &&
+                                   (!flags.hasPerm || (flags.hasPerm && same_perm)) &&
+                                   (!flags.hasType || (flags.hasType && same_type));
+
+      //If the file respects all the restrictions, the actions print, delete and exec are eligible
+      if(respects_restrictions) {
+        //Check if the current file/directory should be printed
+        if(flags.toPrint)
+          printf("\n%s\n", full_name);
+
+        //Check if the current file/directory should be deleted
+        if(flags.toDelete){
+          if( (pid = fork()) == 0){
+            execlp("rm", "-i", "-r", "-f", full_name, NULL);
+            printf("Error in process %d - Deleting file %s\n", getpid(), full_name);
+            return 1;
+          }
+        }
+
+        //Check if the current file/directory should be deleted
+        if(flags.hasExec){
+          //TODO
+        }
       }
-
-      //Check if the current file/directory should be deleted
-			if(flags.toDelete && same_name){
-				if( (pid = fork()) == 0){
-					execlp("rm", "-i", "-r", "-f", full_name, NULL);
-        	printf("Error in process %d - Deleting file %s\n", getpid(), full_name);
-					return 1;
-				}
-			}
 		}
-
 	return 0;
-
 }
