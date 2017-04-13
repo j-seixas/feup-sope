@@ -213,7 +213,7 @@ int main(int argc, char *argv[])
         exit(3);
       }
       else {
-        wait(NULL);;
+        waitpid(pid, NULL, 0);
       }
 		}
 	}
@@ -258,7 +258,7 @@ int main(int argc, char *argv[])
           }
         }
 
-        //Check if the current file/directory should be deleted
+        //Check if the current file/directory should be a argument in the exec command
         if(flags.hasExec){
           //TODO
         }
