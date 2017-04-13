@@ -9,11 +9,11 @@ OBJS_PATH=$(patsubst %,$(ODIR)/%,$(OBJS_NAME))
 
 
 $(OBJS_PATH): sfind.c
-	$(CC) -c -o $@ $< $(CFLAGS)
+	@mkdir -p obj
+	@$(CC) -c -o $@ $< $(CFLAGS)
 
 sfind: $(OBJS_PATH)
-	@mkdir -p obj
-	$(CC) -o $@ $^ $(CFLAGS)
+	@$(CC) -o $@ $^ $(CFLAGS)
 
 clean:
-	rm -fr $(ODIR) sfind
+	@rm -fr $(ODIR) sfind
