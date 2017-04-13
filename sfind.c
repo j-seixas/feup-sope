@@ -64,24 +64,31 @@ char isNumber(const char* str) {
   @return 0
 */
 int strsubst(char **str , char * old_substr , char * new_substr){
+  char * tem = *str;
+  int n_replacements = 0;
+  while ( (tem = strstr(tem,old_substr)) != NULL) {tem++ ; n_replacements++;};
+
   int oldstr_size = strlen(old_substr), newstr_size = strlen(new_substr),  
-      new_size = strlen(*str)+(newstr_size-oldstr_size);
+      new_size = strlen(*str)+newstr_size*n_replacements-oldstr_size*n_replacements;
   char *str_ptr, * temp = (char *)malloc(sizeof(char)*new_size), *remaining;
-  memcpy(temp,*str,strlen(*str));
+  strcpy(temp,*str);
   str_ptr = temp;
 
   while ( (str_ptr = strstr(str_ptr,old_substr)) != NULL ){
-    int remaining_size = strlen(str_ptr), i, j;
+    int remaining_size = strlen(str_ptr), i=0, j=0;
 
     remaining = (char *)malloc(sizeof(char)*(remaining_size-oldstr_size));
     strcpy(remaining, &(str_ptr[oldstr_size]) );
 
-    for (i = 0 ; i < newstr_size ; i++) //copy new string
+    for (i = 0 ; i < newstr_size ; i++)//copy new string
       str_ptr[i] = new_substr[i];
 
-    for(j=0 ; i < new_size ; i++) //copy remaining string
+    for(j=0 ; i < new_size ; i++)//copy remaining string
       str_ptr[i] = remaining[j++];
+      
   }
+  if (n_replacements == 1)
+    temp[strlen(temp)-1] = '\0';
   *str = temp;
   return 0;
 }
@@ -112,7 +119,7 @@ char** parseExec(char *arguments[] , int start , int length ){
 
 int main(int argc, char *argv[])
 {
-	if (argc < 2){
+  if (argc < 2){
 		printf("Wrong Usage\n");
 		return 1;
 	}
@@ -247,8 +254,11 @@ int main(int argc, char *argv[])
           //temp args now contains full copy of exec_args
 
           //substitute all '{}' by name of file
-          for ( args = 0 ; args < n_exec_args ; args++)
-            strsubst( &temp_args[args] , "{}" , dir_info->d_name );
+          for ( args = 0 ; args < n_exec_args ; args++){
+            printf("    PASSED = %s\n",full_name);
+            strsubst( &temp_args[args] , "{}" , full_name );
+            printf("NEW = %s\n",temp_args[args]);
+          }
           
           if (fork() == 0)
             execvp(temp_args[0],temp_args);
@@ -256,6 +266,5 @@ int main(int argc, char *argv[])
         }
       }
 		}
-    
 	return 0;
 }
