@@ -101,23 +101,23 @@ int strsubst(char **str , char * old_substr , char * new_substr){
   return 0;
 }
 
-/*
+
 // find ./ -exec echo 'FILE '{}'' \;
 char** parseExec(char *arguments[] , int start , int length ){
   int i;
   char *ptr;
   for (i = 0 ; i < length ; i++){
     if( (ptr = strstr(arguments[i],"'{}'")) != NULL ){
-      strsubst
-    }else if ( strstr(arguments[start+i] , "\\;") != NULL)
+      printf("DO A STRSUBST HERE!\n");
+    }else if ( strstr(arguments[start+i] , "\\;") != NULL) //means exec arguments ended
       break;
  
   }
 
   printf("DONE\n");
-  return 1;
+  return NULL;
 }
-*/
+
 int main(int argc, char *argv[])
 {
 	if (argc < 2){
@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
       args++;
     }else if ( strcmp(argv[args] , "-exec" ) == 0){
       //+1 not to start in -execc
-      if ( parseExec(argv , args+1 , argv-args-1) != 0 ){ 
+      if ( parseExec(argv , args+1 , argc-args-1) != 0 ){ 
         printf("GOOD\n");
         exit(0);
       }
