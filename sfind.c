@@ -71,10 +71,55 @@ void sigint_handler(int sign){
   }while( 1 );
 }
 
+/**
+  @brief Replaces old string by new string
+  @param str Pointer to string where substrings should be replaced
+  @param old_substr Old substring to be replaced
+  @param new_substr What to use to replace
+  @return 0
+*/
+int strsubst(char **str , char * old_substr , char * new_substr){
+  int oldstr_size = strlen(old_substr), newstr_size = strlen(new_substr),  
+      new_size = strlen(*str)+(newstr_size-oldstr_size);
+  char *str_ptr, * temp = (char *)malloc(sizeof(char)*new_size), *remaining;
+  memcpy(temp,*str,strlen(*str));
+  str_ptr = temp;
 
+  while ( (str_ptr = strstr(str_ptr,old_substr)) != NULL ){
+    int remaining_size = strlen(str_ptr), i, j;
+
+    remaining = (char *)malloc(sizeof(char)*(remaining_size-oldstr_size));
+    strcpy(remaining, &(str_ptr[oldstr_size]) );
+
+    for (i = 0 ; i < newstr_size ; i++) //copy new string
+      str_ptr[i] = new_substr[i];
+
+    for(j=0 ; i < new_size ; i++) //copy remaining string
+      str_ptr[i] = remaining[j++];
+  }
+  *str = temp;
+  return 0;
+}
+
+/*
+// find ./ -exec echo 'FILE '{}'' \;
+char** parseExec(char *arguments[] , int start , int length ){
+  int i;
+  char *ptr;
+  for (i = 0 ; i < length ; i++){
+    if( (ptr = strstr(arguments[i],"'{}'")) != NULL ){
+      strsubst
+    }else if ( strstr(arguments[start+i] , "\\;") != NULL)
+      break;
+ 
+  }
+
+  printf("DONE\n");
+  return 1;
+}
+*/
 int main(int argc, char *argv[])
 {
-
 	if (argc < 2){
 		printf("Wrong Usage\n");
 		return 1;
@@ -85,6 +130,7 @@ int main(int argc, char *argv[])
 
   int args = 2;
   while (args < argc){
+    printf("ARG %d -> %s\n",args,argv[args]);
     if(!strcmp(argv[args] , "-print"))
       flags.toPrint = 1;
     else if(!strcmp(argv[args] , "-delete"))
@@ -104,7 +150,14 @@ int main(int argc, char *argv[])
       flags.hasType = 1;
       flags.type = argv[args+1][0];
       args++;
+    }else if ( strcmp(argv[args] , "-exec" ) == 0){
+      //+1 not to start in -execc
+      if ( parseExec(argv , args+1 , argv-args-1) != 0 ){ 
+        printf("GOOD\n");
+        exit(0);
+      }
     }
+
     args++;
   }
 
@@ -211,5 +264,6 @@ int main(int argc, char *argv[])
         }
       }
 		}
+    
 	return 0;
 }
