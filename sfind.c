@@ -13,12 +13,14 @@
 
 
 typedef struct{
+  char **exec_arguments;
   char *name, *perm_mode;
-  char toPrint, toDelete, hasName, hasType, hasPerm, hasExec, type;
+  char toPrint, toDelete, hasName, hasType, hasPerm, type;
   int perm;
 } Flags;
 
 void initFlags(Flags *flags){
+  flags->exec_arguments = NULL;
   flags->name = malloc(NAME_MAX);
   strcpy(flags->name, "");
   flags->perm_mode = malloc(16);
@@ -29,7 +31,6 @@ void initFlags(Flags *flags){
 	flags->hasName = 0;
 	flags->hasType = 0;
 	flags->hasPerm = 0;
-	flags->hasExec = 0;
   flags->perm = -1;
 }
 
@@ -53,22 +54,6 @@ char isNumber(const char* str) {
     i++;
   }
   return 1;
-}
-
-void sigint_handler(int sign){
-  char c;
-  do{
-      printf("\n\n Are you sure you want to terminate? ");
-      scanf("%c", &c);
-
-      if(c == 'y' || c == 'Y')
-        exit(0);
-      else if(c == 'n' || c == 'N')
-        return;
-      else
-        printf("Error! Not found a valid answer!\n");
-
-  }while( 1 );
 }
 
 /**
@@ -103,19 +88,26 @@ int strsubst(char **str , char * old_substr , char * new_substr){
 
 
 // find ./ -exec echo 'FILE '{}'' \;
+/**
+  @brief Separates the arguments of -exec
+  @param arguments Array with arguments starting with first after -exec all the way to the end of argv
+  @param start Position to start searching
+  @param length How many positions to search (usually until end of array)
+  @return Array with only the arguments of exec (substitutes the ";" by NULL)
+*/
 char** parseExec(char *arguments[] , int start , int length ){
-  int i;
-  char *ptr;
+  int i; 
+  char **exec_args = (char **)malloc(sizeof(char*)*length+1); //to add a NULL
   for (i = 0 ; i < length ; i++){
-    if( (ptr = strstr(arguments[i],"'{}'")) != NULL ){
-      printf("DO A STRSUBST HERE!\n");
-    }else if ( strstr(arguments[start+i] , "\\;") != NULL) //means exec arguments ended
+    if ( strcmp(arguments[start+i],";") == 0 ){
+      exec_args[i] = NULL;
       break;
- 
+    }
+    exec_args[i] = arguments[start+i];
   }
+  exec_args[i] = NULL;
 
-  printf("DONE\n");
-  return NULL;
+  return exec_args;
 }
 
 int main(int argc, char *argv[])
@@ -130,7 +122,7 @@ int main(int argc, char *argv[])
 
   int args = 2;
   while (args < argc){
-    printf("ARG %d -> %s\n",args,argv[args]);
+
     if(!strcmp(argv[args] , "-print"))
       flags.toPrint = 1;
     else if(!strcmp(argv[args] , "-delete"))
@@ -150,13 +142,8 @@ int main(int argc, char *argv[])
       flags.hasType = 1;
       flags.type = argv[args+1][0];
       args++;
-    }else if ( strcmp(argv[args] , "-exec" ) == 0){
-      //+1 not to start in -execc
-      if ( parseExec(argv , args+1 , argc-args-1) != 0 ){ 
-        printf("GOOD\n");
-        exit(0);
-      }
-    }
+    }else if ( strcmp(argv[args] , "-exec" ) == 0)
+      flags.exec_arguments = parseExec(argv , args+1 , argc-args-1);
 
     args++;
   }
@@ -185,16 +172,6 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-  struct sigaction action;
-  action.sa_handler = sigint_handler;
-  sigemptyset(&action.sa_mask);
-  action.sa_flags = 0;
-
-  if ( sigaction(SIGINT, &action, NULL) < 0 ){
-    perror("Error 2: ");
-    exit(2);
-  }
-
   size_t a_size = sizeof(char*) * (argc + 1);
   char **argv_new = malloc(a_size);
   memcpy(argv_new, argv, a_size);
@@ -211,9 +188,6 @@ int main(int argc, char *argv[])
         execv(argv_new[0], argv_new);
         perror("Error 3: ");
         exit(3);
-      }
-      else {
-        waitpid(pid, NULL, 0);
       }
 		}
 	}
@@ -259,8 +233,26 @@ int main(int argc, char *argv[])
         }
 
         //Check if the current file/directory should be a argument in the exec command
-        if(flags.hasExec){
-          //TODO
+        if(flags.exec_arguments != NULL){
+          int n_exec_args = 0;
+          while(flags.exec_arguments[n_exec_args++] != NULL) {};
+          n_exec_args--; //not NULL
+          char **temp_args = (char **)malloc(sizeof(char*)*n_exec_args);
+          for( args = 0 ; args < n_exec_args ; args++){
+            temp_args[args] = (char*)malloc(sizeof(char)*strlen(flags.exec_arguments[args]));
+            unsigned int j = 0;
+            for (j = 0 ; j < strlen(flags.exec_arguments[args]) ; j++)
+              temp_args[args][j] = flags.exec_arguments[args][j];
+          }
+          //temp args now contains full copy of exec_args
+
+          //substitute all '{}' by name of file
+          for ( args = 0 ; args < n_exec_args ; args++)
+            strsubst( &temp_args[args] , "{}" , dir_info->d_name );
+          
+          if (fork() == 0)
+            execvp(temp_args[0],temp_args);
+
         }
       }
 		}
