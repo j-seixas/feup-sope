@@ -87,8 +87,8 @@ int strsubst(char **str , char * old_substr , char * new_substr){
       str_ptr[i] = remaining[j++];
       
   }
-  if (n_replacements == 1)
-    temp[strlen(temp)-1] = '\0';
+  //if (n_replacements == 1)
+  //  temp[strlen(temp)-1] = '\0';
   *str = temp;
   return 0;
 }
@@ -192,6 +192,9 @@ int main(int argc, char *argv[])
         strcat(argv_new[1], "/");
         strcat(argv_new[1], dir_info->d_name);
         //Execute this program with the new path
+
+        setpgid(0,1234);
+        
         execv(argv_new[0], argv_new);
         perror("Error 3: ");
         exit(3);
