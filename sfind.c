@@ -68,7 +68,7 @@ int strsubst(char **str , char * old_substr , char * new_substr){
   int n_replacements = 0;
   while ( (tem = strstr(tem,old_substr)) != NULL) {tem++ ; n_replacements++;};
 
-  int oldstr_size = strlen(old_substr), newstr_size = strlen(new_substr),  
+  int oldstr_size = strlen(old_substr), newstr_size = strlen(new_substr),
       new_size = strlen(*str)+newstr_size*n_replacements-oldstr_size*n_replacements;
   char *str_ptr, * temp = (char *)malloc(sizeof(char)*new_size), *remaining;
   strcpy(temp,*str);
@@ -85,7 +85,7 @@ int strsubst(char **str , char * old_substr , char * new_substr){
 
     for(j=0 ; i < new_size ; i++)//copy remaining string
       str_ptr[i] = remaining[j++];
-      
+
   }
   //if (n_replacements == 1)
   //  temp[strlen(temp)-1] = '\0';
@@ -103,7 +103,7 @@ int strsubst(char **str , char * old_substr , char * new_substr){
   @return Array with only the arguments of exec (substitutes the ";" by NULL)
 */
 char** parseExec(char *arguments[] , int start , int length ){
-  int i; 
+  int i;
   char **exec_args = (char **)malloc(sizeof(char*)*length+1); //to add a NULL
   for (i = 0 ; i < length ; i++){
     if ( strcmp(arguments[start+i],";") == 0 ){
@@ -230,8 +230,8 @@ int main(int argc, char *argv[])
       //If the file respects all the restrictions, the actions print, delete and exec are eligible
       if(respects_restrictions) {
         //Check if the current file/directory should be printed
-        if(flags.toPrint)
-          printf("\n%s\n", full_name);
+        if(flags.toPrint || (!flags.toPrint && flags.hasName))
+          printf("%s\n", full_name);
 
         //Check if the current file/directory should be deleted
         if(flags.toDelete){
@@ -257,12 +257,10 @@ int main(int argc, char *argv[])
           //temp args now contains full copy of exec_args
 
           //substitute all '{}' by name of file
-          for ( args = 0 ; args < n_exec_args ; args++){
-            printf("    PASSED = %s\n",full_name);
+          for ( args = 0 ; args < n_exec_args ; args++)
             strsubst( &temp_args[args] , "{}" , full_name );
-            printf("NEW = %s\n",temp_args[args]);
-          }
-          
+
+
           if (fork() == 0)
             execvp(temp_args[0],temp_args);
 
