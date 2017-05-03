@@ -1,12 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <errno.h>
 
 #define INVALID_ARGS 1
 
 int main ( int argc , char *argv[] ) {
 
   if ( argc != 3 ) {
-		printf("Usage: generator <num. seats> <time unit>\n");
+		write(STDOUT_FILENO,"Usage: sauna <num. seats> <time unit>\n",42);
 		exit(INVALID_ARGS);
 	}
 
