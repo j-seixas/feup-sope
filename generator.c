@@ -11,7 +11,7 @@
 
 int main (int argc , char *argv[] ){
 	if (argc != 4){
-		write(STDOUT_FILENO,"Usage: gerador <n. pedidos> <max. utilizacao> <un. tempo>\n",58);
+		printf("Usage: gerador <n. pedidos> <max. utilizacao> <un. tempo>\n");
 		exit(1);
 	}
 	char *fifo_name = "/tmp/entry";

@@ -11,7 +11,7 @@
 int main ( int argc , char *argv[] ) {
 
   if ( argc != 3 ) {
-		write(STDOUT_FILENO,"Usage: sauna <num. seats> <time unit>\n",42);
+		printf("Usage: sauna <num. seats> <time unit>\n");
 		exit(INVALID_ARGS);
 	}
 
