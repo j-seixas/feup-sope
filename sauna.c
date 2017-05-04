@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <signal.h>
 
 #define REJECTED_PATH  "/tmp/rejected"
 #define ENTRY_PATH     "/tmp/entry"
@@ -140,6 +141,39 @@ int closeFifos(int rejected_fd, int entry_fd) {
   return result;
 }
 
+/**
+ *  @brief       Processes the leave of a user
+ *  @param[in]   request              The accepted user request
+ *  @param[out]  num_seats_available  The number of seats available in sauna
+ *  @param[out]  curr_gender          The current gender of the people inside the sauna
+ *  @param[in]   num_seats            The number of seats of the sauna
+ */
+void leave( uint32 *num_seats_available, char *curr_gender, const uint32 num_seats) {
+  (*num_seats_available)++;
+  if(*num_seats_available == num_seats)
+    *curr_gender = 0;
+}
+
+/**
+ *  @brief  Handles the signal sent when a user leaves the sauna
+ *  @param  signal  The signal received
+ */
+void timeupHandler(int signal) {
+
+}
+
+/**
+ *  @brief   Installs the signal handler for when a user leaves the sauna
+ *  @return  Returns whether or not the signal handler was installed
+ */
+int installTimeupHandler() {
+  struct sigaction new_action;
+  new_action.sa_handler = timeupHandler;
+  sigemptyset(&new_action.sa_mask);
+  new_action.sa_flags = 0;
+  return sigaction(SIGUSR1, &new_action, NULL);
+}
+
 int main(int argc, char *argv[]) {
   uint32 num_seats;
   uint32 num_seats_available;
@@ -149,6 +183,8 @@ int main(int argc, char *argv[]) {
   char curr_gender = 0;
   Request *request = NULL;
 
+  if ( installTimeupHandler() )
+    exit(1);
   if ( readArgs(&num_seats, &time_multiplier, argc, argv) )
     exit(1);
   if ( createFifos() )
