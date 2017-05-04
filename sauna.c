@@ -42,21 +42,6 @@ int readRequest( Request *request, int entry_fd ) {
 }
 
 /**
- *  @brief      Checks if the user can enter the sauna
- *  @param[in]  request              The user request
- *  @param[in]  num_seats_available  The number of seats available in sauna
- *  @param[in]  curr_gender          The current gender of the people inside the sauna
- *  @return     Returns whether or not the user can enter the sauna
- */
-int canEnter( Request *request, uint32 *num_seats_available, char *curr_gender ) {
-  return (*num_seats_available > 0)
-      && (
-         *curr_gender == 0
-      || *curr_gender == request->gender
-    );
-}
-
-/**
  *  @brief       Lets a user enter the sauna
  *  @param[in]   request              The accepted user request
  *  @param[out]  num_seats_available  The number of seats available in sauna
@@ -144,12 +129,25 @@ void leave( uint32 *num_seats_available, char *curr_gender, const uint32 num_sea
     *curr_gender = 0;
 }
 
+void putOnHold(Request *request) {
+  //TODO - Recebe um user e põe-no em lista de espera
+}
+
 /**
  *  @brief  Handles the signal sent when a user leaves the sauna
  *  @param  signal  The signal received
  */
 void timeupHandler(int signal) {
+  //TODO - Recebe signal do generator - um user sai
+}
 
+int hasSeats(uint32 num_seats_available) {
+  return num_seats_available > 0;
+}
+
+int sameGender(Request *request, char curr_gender) {
+  return (curr_gender == 0)
+      || (curr_gender == request->gender);
 }
 
 /**
@@ -182,8 +180,11 @@ int main(int argc, char *argv[]) {
     exit(1);
   num_seats_available = num_seats;
   while( readRequest(request, entry_fd) ) {
-    if( canEnter(request, &num_seats_available, &curr_gender) )
-      enter(request, &num_seats_available, &curr_gender);
+    if( sameGender(request, curr_gender) )
+      if ( hasSeats(num_seats_available) )
+        enter(request, &num_seats_available, &curr_gender);
+      else
+        putOnHold(request);
     else
       reject(request, rejected_fd);
   }
