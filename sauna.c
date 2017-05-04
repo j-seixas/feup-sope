@@ -11,6 +11,28 @@
 
 typedef unsigned int uint;
 
+typedef struct {
+  uint serial_number;
+  uint time_spent;
+  char gender;
+} Request;
+
+int readRequest( Request *request, int entry_fd ) {
+
+}
+
+int canEnter( Request *request, uint *num_seats_available, char *gender ) {
+
+}
+
+int enter( Request *request, uint *num_seats_available, char *gender ) {
+
+}
+
+int reject( Request *request, int rejected_fd ) {
+
+}
+
 int readArgs(uint* num_seats, uint* time_multiplier, const int argc, char *argv[]) {
   if ( argc != 3 ) {
     printf("Usage: sauna <num. seats> <time unit>\n");
@@ -53,9 +75,12 @@ int closeFifos(int *rejected_fd, int *entry_fd) {
 
 int main(int argc, char *argv[]) {
   uint num_seats;
+  uint num_seats_available;
   uint time_multiplier;
   int rejected_fd;
   int entry_fd;
+  char curr_gender = 0;
+  Request *request;
 
   if ( readArgs(&num_seats, &time_multiplier, argc, argv) )
     exit(1);
@@ -63,7 +88,13 @@ int main(int argc, char *argv[]) {
     exit(1);
   if ( openFifos(&rejected_fd, &entry_fd) )
     exit(1);
-
+  num_seats_available = num_seats;
+  while( readRequest(request, entry_fd) ) {
+    if( canEnter(request, &num_seats_available, &curr_gender) )
+      enter(request, &num_seats_available, &curr_gender);
+    else
+      reject(request, rejected_fd);
+  }
   if ( closeFifos(&rejected_fd, &entry_fd) )
     exit(1);
 
