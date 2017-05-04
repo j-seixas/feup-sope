@@ -80,27 +80,17 @@ int reject( Request *request, int rejected_fd ) {
 /**
  *  @brief       Processes the arguments from the command line
  *  @param[out]  num_seats        The pointer to which the number of seats of the sauna will be written to
- *  @param[out]  time_multiplier  The pointer to which the time multiplier will be written to
  *  @param[in]   argc             The number of command line arguments
  *  @param[in]   argv             The command line arguments
  *  @return      Returns whether or not the arguments are valid
  */
-int readArgs(uint* num_seats, uint* time_multiplier, const int argc, char *argv[]) {
-  if ( argc != 3 ) {
-    printf("Usage: sauna <num. seats> <time unit>\n");
+int readArgs(uint* num_seats, const int argc, char *argv[]) {
+  if ( argc != 2 ) {
+    printf("Usage: sauna <num. seats>\n");
     return 1;
   }
 
   *num_seats = strtol(argv[1],NULL,10);
-  char time_unit = argv[2][0];
-
-  if ( time_unit == 's' )
-    *time_multiplier = 1000000;
-  else if ( time_unit == 'm' )
-    *time_multiplier = 1000;
-  else if ( time_unit == 'u' )
-    *time_multiplier = 1;
-  else return 1;
 
   return 0;
 }
@@ -177,7 +167,6 @@ int installTimeupHandler() {
 int main(int argc, char *argv[]) {
   uint32 num_seats;
   uint32 num_seats_available;
-  uint32 time_multiplier;
   int rejected_fd;
   int entry_fd;
   char curr_gender = 0;
@@ -185,7 +174,7 @@ int main(int argc, char *argv[]) {
 
   if ( installTimeupHandler() )
     exit(1);
-  if ( readArgs(&num_seats, &time_multiplier, argc, argv) )
+  if ( readArgs(&num_seats, argc, argv) )
     exit(1);
   if ( createFifos() )
     exit(1);
