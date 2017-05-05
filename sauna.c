@@ -1,39 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <signal.h>
-#include <string.h>
-#include <pthread.h>
-#include <sys/types.h>
-#include <sys/syscall.h>
-
-
-#define REJECTED_PATH  "/tmp/rejected"
-#define ENTRY_PATH     "/tmp/entry"
-#define FIFO_MODE      0600
-
-typedef unsigned int uint32;
-typedef unsigned long int uint64;
-
-/** @struct Request
- *  @brief Holds a request information
- *
- *  @var Request::serial_number
- *  Holds the serial number of this request
- *
- *  @var Request::time_spent
- *  Indicates the time the user is going to spend inside the sauna
- *
- *  @var Request::gender
- *  Indicates the gender of the user
- */
-typedef struct {
-  uint64 serial_number;
-  uint64 time_spent;
-  char gender;
-} Request;
+#include "utils.h"
 
 static Request **requests;
 static uint32 num_seats;
@@ -113,17 +78,6 @@ int readArgs(const int argc, char *argv[]) {
 }
 
 /**
- *  @brief   Creates the entry and rejected fifos
- *  @return  Returns whether or not the fifos were created
- */
-int createFifos() {
-  int result = 0;
-  result |= mkfifo(REJECTED_PATH, FIFO_MODE);
-  result |= mkfifo(ENTRY_PATH, FIFO_MODE);
-  return result;
-}
-
-/**
  *  @brief       Opens the entry and rejected fifos
  *  @param[out]  rejected_fd  The pointer to which the file descriptor of the rejected fifo will be written to
  *  @param[out]  entry_fd     The pointer to which the file descriptor of the entry fifo will be written to
@@ -132,20 +86,7 @@ int createFifos() {
 int openFifos(int *rejected_fd, int *entry_fd) {
   *rejected_fd = open(REJECTED_PATH, O_WRONLY);
   *entry_fd = open(ENTRY_PATH, O_RDONLY);
-  return (*rejected_fd == -1 || *entry_fd == -1);
-}
-
-/**
- *  @brief      Closes the entry and rejected fifos
- *  @param[in]  rejected_fd  The file descriptor of the rejected fifoo
- *  @param[in]  entry_fd     The file descriptor of the entry fifo
- *  @return     Returns whether or not the fifos were closed
- */
-int closeFifos(int rejected_fd, int entry_fd) {
-  int result = 0;
-  result |= close(rejected_fd);
-  result |= close(entry_fd);
-  return result;
+  return (*rejected_fd < 0 || *entry_fd < 0);
 }
 
 /**
@@ -209,8 +150,7 @@ int main(int argc, char *argv[]) {
     exit(1);
   if ( readArgs(argc, argv) )
     exit(1);
-  if ( createFifos() )
-    exit(1);
+  createFifos();
   if ( openFifos(&rejected_fd, &entry_fd) )
     exit(1);
   while( readRequest(&request, entry_fd) ) {
@@ -226,6 +166,8 @@ int main(int argc, char *argv[]) {
   }
   if ( closeFifos(rejected_fd, entry_fd) )
     exit(1);
+
+  pthread_exit(NULL);
 
   return 0;
 }
