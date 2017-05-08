@@ -53,12 +53,14 @@ void sendRejected(int entry_fd){
 }
 
 void generateRequests() {
-	for (uint32 i = 0 ; i < num_requests ; i++){
+	for (uint32 i = 0 ; i <= num_requests ; i++){
 		requests[i] = malloc(sizeof(Request));
 		requests[i]->serial_number = serial_no++;
 		requests[i]->gender = rand() % 2 ? 'M' : 'F';
 		requests[i]->time_spent = (rand() % max_time) + 1;
 		requests[i]->times_rejected = 0;
+		printf("Generating Request: %d\n. Serial: %lu, ", i, requests[i]->serial_number);
+		printf("Gender: %c, Time: %lu, Rejected: %d", requests[i]->gender, requests[i]->time_spent, requests[i]->times_rejected);
 	}
 }
 
@@ -88,9 +90,11 @@ int main (int argc , char *argv[] ){
 		exit(1);
 
 	createFifos();
+	printf("Generator created fifos\n");
 
 	if( openFifos(&rejected_fd, &entry_fd) )
 		exit(1);
+	printf("Generator opened fifos\n");
 
 	generateRequests();
 	initReader(rejected_fd);

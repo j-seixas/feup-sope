@@ -36,8 +36,13 @@ void enter( Request *request ) {
   num_seats_available--;
   curr_gender = request->gender;
   for(uint32 i = 0; i < num_seats; i++)
-    if(requests[i] == NULL)
-      memcpy(requests[i], request, sizeof(Request));
+    if(requests[i] == NULL){
+      printf("Found empty spot at %d\n", i);
+      requests[i] = malloc(sizeof(Request));
+      memmove(requests[i], request, sizeof(Request));
+      printf("Copied request to array\n");
+      break;
+    }
   pthread_t thread;
   pthread_create(&thread, NULL, waitForUser, (void*)request);
 }
@@ -59,7 +64,7 @@ int reject( Request *request, int rejected_fd ) {
  *  @param[in]   argv             The command line arguments
  *  @return      Returns whether or not the arguments are valid
  */
-int readArgs(const int argc, char *argv[]) {
+int init(const int argc, char *argv[]) {
   if ( argc != 2 ) {
     printf("Usage: sauna <num. seats>\n");
     return 1;
@@ -144,25 +149,35 @@ int installTimeupHandler() {
 int main(int argc, char *argv[]) {
   int rejected_fd;
   int entry_fd;
-  Request request;
+  Request *request = malloc(sizeof(Request));
 
   if ( installTimeupHandler() )
     exit(1);
-  if ( readArgs(argc, argv) )
+  printf("Sauna installed handler\n");
+  if ( init(argc, argv) )
     exit(1);
+  printf("Sauna read the args\n");
   createFifos();
+  printf("Sauna created fifos\n");
   if ( openFifos(&rejected_fd, &entry_fd) )
     exit(1);
-  while( readRequest(&request, entry_fd) ) {
-    if( sameGender(&request) ) {
-      if ( hasSeats() )
-        enter(&request);
+  printf("Sauna opened fifos\n");
+  while( readRequest(request, entry_fd) ) {
+    printf("Read Request\n");
+    printf("Serial: %lu, Gender: %c, Time: %lu, Rejected: %d\n", request->serial_number, request->gender, request->time_spent, request->times_rejected);
+    if( sameGender(request) ) {
+      printf("Same gender\n");
+      if ( hasSeats() ){
+        printf("Has seats\n");
+        enter(request);
+        printf("Entered\n");
+      }
       else {
         putOnHold();
-        enter(&request);
+        enter(request);
       }
     } else
-      reject(&request, rejected_fd);
+      reject(request, rejected_fd);
   }
   if ( closeFifos(rejected_fd, entry_fd) )
     exit(1);
