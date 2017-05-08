@@ -4,7 +4,6 @@ static Request **requests;
 static uint32 num_seats;
 static uint32 num_seats_available;
 static char curr_gender;
-//static pid_t main_thread_tid;
 
 /**
  *  @brief       Reads a request from the entry fifo
@@ -22,14 +21,14 @@ int readRequest( Request *request, int entry_fd ) {
  *  @param[in]  rejected_fd  The file descriptor of the rejected fifo
  *  @return     Returns whether or not the writing was successful
  */
-int reject( Request *request, int rejected_fd ) {
+int sendResult( Request *request, int rejected_fd ) {
     return write(rejected_fd, request, sizeof(Request)) == sizeof(Request);
 }
 
 /**
  *  @brief       Processes the arguments from the command line and initializes variables
- *  @param[in]   argc             The number of command line arguments
- *  @param[in]   argv             The command line arguments
+ *  @param[in]   argc  The number of command line arguments
+ *  @param[in]   argv  The command line arguments
  *  @return      Returns whether or not the arguments are valid
  */
 int init(const int argc, char *argv[]) {
@@ -42,8 +41,6 @@ int init(const int argc, char *argv[]) {
   num_seats_available = num_seats;
   requests = malloc(num_seats * sizeof(Request*));
   curr_gender = 0;
-  //main_thread_tid = syscall(SYS_gettid);
-
   for(uint32 i = 0; i < num_seats; i++)
     requests[i] = NULL;
 
@@ -72,10 +69,8 @@ void leave(Request *request) {
     curr_gender = 0;
   for(uint32 i = 0; i < num_seats; i++)
     if(requests[i] != NULL)
-      if(requests[i]->serial_number == request->serial_number) {
-        //TODO log
+      if(requests[i]->serial_number == request->serial_number)
         requests[i] = NULL;
-      }
 }
 
 void* waitForUser( void *request ){
@@ -93,15 +88,13 @@ void enter( Request *request ) {
   curr_gender = request->gender;
   for(uint32 i = 0; i < num_seats; i++)
     if(requests[i] == NULL){
-      printf("Found empty spot at %d\n", i);
       requests[i] = malloc(sizeof(Request));
+      request->resend_flag = 0;
       memmove(requests[i], request, sizeof(Request));
-      printf("Copied request to array\n");
       break;
     }
-  waitForUser((void*)request);
-  //pthread_t thread;
-  //pthread_create(&thread, NULL, waitForUser, (void*)request);
+  pthread_t thread;
+  pthread_create(&thread, NULL, waitForUser, (void*)request);
 }
 
 void putOnHold() {
@@ -121,6 +114,11 @@ int sameGender(Request *request) {
       || (curr_gender == request->gender);
 }
 
+void reject(Request *request){
+  request->resend_flag = 1;
+  request->times_rejected++;
+}
+
 
 int main(int argc, char *argv[]) {
   int rejected_fd;
@@ -129,34 +127,41 @@ int main(int argc, char *argv[]) {
 
   if ( init(argc, argv) )
     exit(1);
-  printf("Sauna read the args\n");
   createFifos();
-  printf("Sauna created fifos\n");
   if ( openFifos(&rejected_fd, &entry_fd) )
     exit(1);
-  printf("Sauna opened fifos\n");
+  printf("Opened fifos\n");
+
+
   while( readRequest(request, entry_fd) ) {
     printf("Serial: %lu, Gender: %c, Time: %lu, Rejected: %d\n", request->serial_number, request->gender, request->time_spent, request->times_rejected);
 
-  /*  if( sameGender(request) ) {
-      printf("Same gender\n");
-      if ( hasSeats() ){
-        printf("Has seats\n");
-        enter(request);
-        printf("Entered\n");
-      }
-      else {
-        putOnHold();
-        enter(request);
-      }
-    } else
-      reject(request, rejected_fd);  */
-
+  if( sameGender(request) ) {
+    printf("Same gender\n");
+    if ( hasSeats() ){
+      printf("Has seats\n");
+      enter(request);
+      printf("Entered\n");
+    } else {
+      printf("Waiting for free spot\n");
+      putOnHold();
+      printf("Spot freed\n");
+      enter(request);
+      printf("Entered\n");
+    }
+  } else {
+      reject(request);
   }
+    sendResult(request, rejected_fd);
+    printf("Result sent\n");
+  }
+
+
   if ( closeFifos(rejected_fd, entry_fd) )
     exit(1);
+  printf("Closed fifos\n");
 
-  //pthread_exit(NULL);
+  pthread_exit(NULL);
 
   return 0;
 }

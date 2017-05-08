@@ -37,6 +37,7 @@ typedef struct {
   uint64 time_spent;
   char gender;
   char times_rejected;
+  char resend_flag;
 } Request;
 
 /**
