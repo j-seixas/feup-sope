@@ -4,7 +4,7 @@ static Request **requests;
 static uint32 num_seats;
 static uint32 num_seats_available;
 static char curr_gender;
-static pid_t main_thread_tid;
+//static pid_t main_thread_tid;
 
 /**
  *  @brief       Reads a request from the entry fifo
@@ -14,37 +14,6 @@ static pid_t main_thread_tid;
  */
 int readRequest( Request *request, int entry_fd ) {
   return read(entry_fd, request, sizeof(Request)) == sizeof(Request);
-}
-
-void* waitForUser( void *request ){
-  usleep(((Request*)request)->time_spent);
-  for(uint32 i = 0; i < num_seats; i++)
-    if(requests[i] != NULL)
-      if(requests[i]->serial_number == ((Request*)request)->serial_number)
-        requests[i]->serial_number = 0;
-  pthread_kill(main_thread_tid, SIGUSR1);
-  return 0;
-}
-
-/**
- *  @brief       Lets a user enter the sauna
- *  @param[in]   request              The accepted user request
- *  @param[out]  num_seats_available  The number of seats available in sauna
- *  @param[out]  curr_gender          The current gender of the people inside the sauna
- */
-void enter( Request *request ) {
-  num_seats_available--;
-  curr_gender = request->gender;
-  for(uint32 i = 0; i < num_seats; i++)
-    if(requests[i] == NULL){
-      printf("Found empty spot at %d\n", i);
-      requests[i] = malloc(sizeof(Request));
-      memmove(requests[i], request, sizeof(Request));
-      printf("Copied request to array\n");
-      break;
-    }
-  pthread_t thread;
-  pthread_create(&thread, NULL, waitForUser, (void*)request);
 }
 
 /**
@@ -58,8 +27,7 @@ int reject( Request *request, int rejected_fd ) {
 }
 
 /**
- *  @brief       Processes the arguments from the command line
- *  @param[out]  num_seats        The pointer to which the number of seats of the sauna will be written to
+ *  @brief       Processes the arguments from the command line and initializes variables
  *  @param[in]   argc             The number of command line arguments
  *  @param[in]   argv             The command line arguments
  *  @return      Returns whether or not the arguments are valid
@@ -74,7 +42,7 @@ int init(const int argc, char *argv[]) {
   num_seats_available = num_seats;
   requests = malloc(num_seats * sizeof(Request*));
   curr_gender = 0;
-  main_thread_tid = syscall(SYS_gettid);
+  //main_thread_tid = syscall(SYS_gettid);
 
   for(uint32 i = 0; i < num_seats; i++)
     requests[i] = NULL;
@@ -96,33 +64,52 @@ int openFifos(int *rejected_fd, int *entry_fd) {
 
 /**
  *  @brief       Processes the leave of a user
- *  @param[in]   request              The accepted user request
- *  @param[out]  num_seats_available  The number of seats available in sauna
- *  @param[out]  curr_gender          The current gender of the people inside the sauna
- *  @param[in]   num_seats            The number of seats of the sauna
+ *  @param[in]   request  The accepted user request
  */
-void leave() {
+void leave(Request *request) {
   num_seats_available++;
   if(num_seats_available == num_seats)
     curr_gender = 0;
   for(uint32 i = 0; i < num_seats; i++)
     if(requests[i] != NULL)
-      if(requests[i]->time_spent == 0){
+      if(requests[i]->serial_number == request->serial_number) {
         //TODO log
         requests[i] = NULL;
       }
 }
 
-void putOnHold() {
-  pause();
+void* waitForUser( void *request ){
+  usleep(((Request*)request)->time_spent);
+  leave(request);
+  return 0;
 }
 
 /**
- *  @brief  Handles the signal sent when a user leaves the sauna
- *  @param  signal  The signal received
+ *  @brief       Lets a user enter the sauna
+ *  @param[in]  request  The accepted user request
  */
-void timeupHandler(int signal) {
-    leave();
+void enter( Request *request ) {
+  num_seats_available--;
+  curr_gender = request->gender;
+  for(uint32 i = 0; i < num_seats; i++)
+    if(requests[i] == NULL){
+      printf("Found empty spot at %d\n", i);
+      requests[i] = malloc(sizeof(Request));
+      memmove(requests[i], request, sizeof(Request));
+      printf("Copied request to array\n");
+      break;
+    }
+  waitForUser((void*)request);
+  //pthread_t thread;
+  //pthread_create(&thread, NULL, waitForUser, (void*)request);
+}
+
+void putOnHold() {
+  while(1) {
+    for(uint32 i = 0; i < num_seats; i++)
+      if(requests[i] == NULL)
+        return;
+  }
 }
 
 int hasSeats() {
@@ -134,26 +121,12 @@ int sameGender(Request *request) {
       || (curr_gender == request->gender);
 }
 
-/**
- *  @brief   Installs the signal handler for when a user leaves the sauna
- *  @return  Returns whether or not the signal handler was installed
- */
-int installTimeupHandler() {
-  struct sigaction new_action;
-  new_action.sa_handler = timeupHandler;
-  sigemptyset(&new_action.sa_mask);
-  new_action.sa_flags = 0;
-  return sigaction(SIGUSR1, &new_action, NULL);
-}
 
 int main(int argc, char *argv[]) {
   int rejected_fd;
   int entry_fd;
   Request *request = malloc(sizeof(Request));
 
-  if ( installTimeupHandler() )
-    exit(1);
-  printf("Sauna installed handler\n");
   if ( init(argc, argv) )
     exit(1);
   printf("Sauna read the args\n");
@@ -163,9 +136,9 @@ int main(int argc, char *argv[]) {
     exit(1);
   printf("Sauna opened fifos\n");
   while( readRequest(request, entry_fd) ) {
-    printf("Read Request\n");
     printf("Serial: %lu, Gender: %c, Time: %lu, Rejected: %d\n", request->serial_number, request->gender, request->time_spent, request->times_rejected);
-    if( sameGender(request) ) {
+
+  /*  if( sameGender(request) ) {
       printf("Same gender\n");
       if ( hasSeats() ){
         printf("Has seats\n");
@@ -177,12 +150,13 @@ int main(int argc, char *argv[]) {
         enter(request);
       }
     } else
-      reject(request, rejected_fd);
+      reject(request, rejected_fd);  */
+
   }
   if ( closeFifos(rejected_fd, entry_fd) )
     exit(1);
 
-  pthread_exit(NULL);
+  //pthread_exit(NULL);
 
   return 0;
 }
