@@ -45,7 +45,7 @@ void sendRequests(int entry_fd){
 				if(requests[i]->times_rejected < 3
 				&& requests[i]->resend_flag) {
 					requests[i]->resend_flag = 0;
-					printf("Serial: %lu, Rejected: %d, Flag: %d\n", requests[i]->serial_number, requests[i]->times_rejected, requests[i]->resend_flag);
+					printf("Sender -> Serial: %lu, Rejected: %d, Flag: %d\n", requests[i]->serial_number, requests[i]->times_rejected, requests[i]->resend_flag);
 					write(entry_fd, requests[i], sizeof(Request));
 				}
 				else
@@ -59,6 +59,7 @@ void* handleResults(void* rejected_fd){
 	Request request;
 	while( !requestsHandled() ){
 		read(*((int*)rejected_fd), &request, sizeof(Request));
+		printf("Handler -> Serial: %lu, Rejected: %d, Flag: %d\n", request.serial_number, request.times_rejected, request.resend_flag);
 		for (uint32 i = 0 ; i < num_requests ; i++){
 			if(requests[i]->serial_number == request.serial_number) {
 				memmove(requests[i], &request, sizeof(Request));
@@ -83,7 +84,7 @@ void generateRequests() {
 		requests[i]->time_spent = (rand() % max_time) + 1;
 		requests[i]->times_rejected = 0;
 		requests[i]->resend_flag = 1;
-		printf("Serial: %lu, Gender: %c, Time: %lu\n", requests[i]->serial_number, requests[i]->gender, requests[i]->time_spent);
+		printf("Generator -> Serial: %lu, Gender: %c, Time: %lu\n", requests[i]->serial_number, requests[i]->gender, requests[i]->time_spent);
 	}
 }
 

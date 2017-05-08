@@ -158,7 +158,6 @@ int main(int argc, char *argv[]) {
     printf("Result sent\n");
   }
 
-
   if ( closeFifos(rejected_fd, entry_fd) )
     exit(1);
   printf("Closed fifos\n");
