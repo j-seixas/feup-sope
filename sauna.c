@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
 
 
   while( readRequest(request, entry_fd) ) {
-    printf("Serial: %lu, Gender: %c, Time: %lu, Rejected: %d\n", request->serial_number, request->gender, request->time_spent, request->times_rejected);
+    printf("\nSerial: %lu, Gender: %c, Time: %lu, Rejected: %d\n", request->serial_number, request->gender, request->time_spent, request->times_rejected);
 
   if( sameGender(request) ) {
     printf("Same gender\n");
@@ -151,7 +151,9 @@ int main(int argc, char *argv[]) {
     }
   } else {
       reject(request);
+      printf("Rejected\n");
   }
+
     sendResult(request, rejected_fd);
     printf("Result sent\n");
   }

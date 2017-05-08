@@ -45,6 +45,7 @@ void sendRequests(int entry_fd){
 				if(requests[i]->times_rejected < 3
 				&& requests[i]->resend_flag) {
 					requests[i]->resend_flag = 0;
+					printf("Serial: %lu, Rejected: %d, Flag: %d\n", requests[i]->serial_number, requests[i]->times_rejected, requests[i]->resend_flag);
 					write(entry_fd, requests[i], sizeof(Request));
 				}
 				else
@@ -59,8 +60,7 @@ void* handleResults(void* rejected_fd){
 	while( !requestsHandled() ){
 		read(*((int*)rejected_fd), &request, sizeof(Request));
 		for (uint32 i = 0 ; i < num_requests ; i++){
-			if(requests[i] == NULL) {
-				request.resend_flag = 1;
+			if(requests[i]->serial_number == request.serial_number) {
 				memmove(requests[i], &request, sizeof(Request));
 				break;
 			}
@@ -69,9 +69,10 @@ void* handleResults(void* rejected_fd){
 	return 0;
 }
 
-void initResultReader(int rejected_fd) {
+pthread_t initResultReader(int rejected_fd) {
 	pthread_t thread;
 	pthread_create(&thread, NULL, handleResults, &rejected_fd);
+	return thread;
 }
 
 void generateRequests() {
@@ -81,7 +82,7 @@ void generateRequests() {
 		requests[i]->gender = rand() % 2 ? 'M' : 'F';
 		requests[i]->time_spent = (rand() % max_time) + 1;
 		requests[i]->times_rejected = 0;
-		requests[i]->resend_flag = 0;
+		requests[i]->resend_flag = 1;
 		printf("Serial: %lu, Gender: %c, Time: %lu\n", requests[i]->serial_number, requests[i]->gender, requests[i]->time_spent);
 	}
 }
@@ -100,15 +101,14 @@ int main (int argc , char *argv[] ){
 	printf("Opened fifos\n");
 
 	generateRequests();
-	initResultReader(rejected_fd);
+	pthread_t thread = initResultReader(rejected_fd);
 	sendRequests(entry_fd);
+
+	pthread_join(thread, NULL);
 
 	if( closeFifos(rejected_fd, entry_fd) )
 		exit(1);
 	printf("Closed fifos\n");
 
-	pthread_exit(NULL);
-
 	return 0;
-
 }
