@@ -1,166 +1,115 @@
-#include <stdio.h>
-#include <time.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <errno.h>
+#include "utils.h"
 
-#define SEND_NAME "/tmp/entry"
-#define ENTRY_NAME "/tmp/rejected"
-#define FIFO_MODE 0600
+static request_t **requests;
+static uint32 num_requests;
+static uint64 max_time;
 
-/**
- * @struct send_info_t
- * @brief Struct that will hold a request information
- * @var send_info_t::ser_no
- * Will hold the serial number of this request
- * @var send_info_t::gender
- * The gender of the request (0->F , 1->M)
- * @var send_info_t::time
- * How much time it will spend in the sauna
- */
-typedef struct {
-	unsigned int ser_no;
-	unsigned int gender;
-	unsigned long int time;
-} send_info_t;
-
-/**
- * @struct queue_t
- * @brief Struct to simulate the behaviour of a queue_t
- * @var queue_t::ptr
- *  	Element to pop
- * @var queue_t::insert
- * 	Where to insert next element
- * @var queue_t::delta_ops
- * 	Difference between push and pops
- * @var queue_t::arr
- * 	Array which will hold the information
- * @detail 
- * 	If queue_t::delta_ops=3 then it is impossible to push a new element until an element is popped
- */
-typedef struct{
-	unsigned int ptr;
-	unsigned int insert;
-	unsigned int delta_ops;
-	send_info_t arr[3];
-} queue_t;
-
-
-int sendRequest( int write_fd , unsigned int serial_no , unsigned long int max_ut);
-int checkResponse( int read_fd );
-
-/**
- * @brief Pushes a new element in the queue
- * @param q Pointer to the queue
- * @param elem Element to be inserted into queue
- * @return 0 if push was successful, 1 if push is not possible
- */
-int queuePush (queue_t *q, send_info_t *elem){
-	if (q->delta_ops < 3){
-		q->arr[q->insert++] = *elem;
-		q->insert = q->insert % 3;
-		q->delta_ops++;
-		return 0;
-	}
-	else
+int init(int argc , char *argv[]) {
+	if (argc != 3){
+		printf("Usage: generator <num. requests> <max. time>\n");
 		return 1;
+	}
+	srand(time(NULL));
+	num_requests = strtol(argv[1],NULL,10);
+	max_time  = strtol(argv[2],NULL,10);
+	requests = malloc(num_requests * sizeof(request_t*));
+	for (uint32 i = 0 ; i < num_requests ; i++)
+		requests[i] = NULL;
+	return 0;
 }
 
+/**
+ *  @brief       Opens the entry and rejected fifos
+ *  @param  rejected_fd  The pointer to which the file descriptor of the rejected fifo will be written to
+ *  @param  entry_fd     The pointer to which the file descriptor of the entry fifo will be written to
+ *  @return      Returns whether or not the fifos were opened
+ */
+int openFifos(int *rejected_fd, int *entry_fd) {
+  *rejected_fd = open(REJECTED_PATH, O_RDONLY);
+  *entry_fd = open(ENTRY_PATH, O_WRONLY);
+  return (*rejected_fd < 0 || *entry_fd < 0);
+}
 
-send_info_t queuePop(queue_t *q){
-	send_info_t ret = q->arr[q->ptr];
-	if (ret != NULL && q->delta_ops > 0){
-		q->arr[q->ptr++] = NULL;	
-		q->ptr = q->ptr % 3;
-		q->delta_ops--;
+char isHandled(request_t *request) {
+		return (request->status & TREATED) || (request->status & DISCARDED);
+}
+
+void sendRequests(int entry_fd){
+	char allHandled = 0;
+	while( !allHandled ){
+		allHandled = 1;
+		for (uint32 i = 0 ; i < num_requests ; i++){
+			if( !isHandled(requests[i]) ) {
+				if( requests[i]->times_rejected < 3 ) {
+					if( requests[i]->status & SEND ) {
+						requests[i]->status &= !SEND;
+						printf("Sender -> Serial: %lu, Rejected: %d, Status: %d\n", requests[i]->serial_number, requests[i]->times_rejected, requests[i]->status);
+						write(entry_fd, requests[i], sizeof(request_t));
+					}
+				} else {
+					requests[i]->status |= DISCARDED;
+				}
+				allHandled = 0;
+			}
+		}
 	}
-	return ret;
+}
+
+void* handleResults(void* rejected_fd){
+	request_t request;
+	char allHandled = 0;
+	while( !allHandled ) {
+		read(*((int*)rejected_fd), &request, sizeof(request_t));
+		printf("Handler -> Serial: %lu, Rejected: %d, Status: %d\n", request.serial_number, request.times_rejected, request.status);
+		for (uint32 i = 0 ; i < num_requests ; i++) {
+			allHandled &= isHandled(requests[i]);
+			if(requests[i]->serial_number == request.serial_number) {
+				memmove(requests[i], &request, sizeof(request_t));
+			}
+		}
+	}
+	return 0;
+}
+
+pthread_t initResultReader(int *rejected_fd) {
+	pthread_t thread;
+	pthread_create(&thread, NULL, handleResults, rejected_fd);
+	return thread;
+}
+
+void generateRequests() {
+	for (uint32 i = 0 ; i < num_requests ; i++){
+		requests[i] = malloc(sizeof(request_t));
+		requests[i]->serial_number = i;
+		requests[i]->gender = rand() % 2 ? 'M' : 'F';
+		requests[i]->time_spent = (rand() % max_time) + 1;
+		requests[i]->times_rejected = 0;
+		requests[i]->status = SEND;
+		printf("Generator -> Serial: %lu, Gender: %c, Time: %lu\n", requests[i]->serial_number, requests[i]->gender, requests[i]->time_spent);
+	}
 }
 
 int main (int argc , char *argv[] ){
-	if (argc != 4){
-		printf("Usage: gerador <n. pedidos> <max. utilizacao> <un. tempo>\n");
+	int rejected_fd, entry_fd;
+
+	if( init(argc, argv) )
 		exit(1);
-	}
-	srand(time(NULL));
 
-	int n_ped = strtol(argv[1],NULL,10),
-	    write_fd,
-	    read_fd;
-	unsigned long int max_ut= strtol(argv[2],NULL,10),
-			  serial_no = 1;
+	createFifos();
 
-	if (mkfifo(SEND_NAME,FIFO_MODE) < 0){
-		perror("Error 2");
-		exit(2);
-	}
+	if( openFifos(&rejected_fd, &entry_fd) )
+		exit(1);
+	printf("Opened fifos\n");
 
-	if ( (write_fd = open(SEND_NAME , O_WRONLY , NULL)) < 0 ){
-		perror("Error 3");
-		exit(3);
-	}
+	generateRequests();
+	pthread_t thread = initResultReader(&rejected_fd);
+	sendRequests(entry_fd);
 
-	if (mkfifo(ENTRY_NAME,FIFO_MODE) < 0){
-		perror("Error 4");
-		exit(4);
-	}
-	if ( (read_fd = open(ENTRY_NAME , O_RDONLY , NULL)) < 0){
-		perror("Error 5");
-		exit(5);
-	}
-	int i=0;
-	for (i = 0 ; i < n_ped ; i++){
-		checkResponse( read_fd );
-		sendRequest( write_fd , serial_no++ , max_ut);
-		send_info_t temp;
-		temp.ser_no = serial_no++;
-		temp.gender = rand() % 2; //generate numbers between 10 and 1
-		temp.time = (rand() % max_ut)+1; //[1,10]
-		write(write_fd,&temp,sizeof(temp));
-	}
+	pthread_join(thread, NULL);
 
-
-	return 0;
-
-}
-
-/**
- * @brief Sends a single request to the sauna
- * @param write_fd File descriptor to write information to
- * @param serial_no Serial number of the request
- * @param max_ut Limits the generated time between [1,max_ut]
- */
-int sendRequest( int write_fd , unsigned int serial_no , unsigned long int max_ut){
-	send_info_t temp;
-	temp.ser_no = serial_no;
-	temp.gender = rand() % 2; //generate numbers between 0 and 1
-	temp.time = (rand() % max_ut)+1; //[1,10]
-	write(write_fd,&temp,sizeof(temp));
-
-
+	if( closeFifos(rejected_fd, entry_fd) )
+		exit(1);
+	printf("Closed fifos\n");
+	
 	return 0;
 }
-
-/**
- * @brief Checks if there is a response from the rejected FIFO
- * @param read_fd File descriptor of the FIFO
- * @return What the response should be
- */
-int checkResponse( int read_fd ){
-	unsigned int n_bytes=0;
-	send_info_t response;
-	response.ser_no=0;
-	while ( (n_bytes = read(read_fd,&response,sizeof(response))) > 0){};
-	if (0 != response.ser_no){ //it got a message from rejected
-		//TODO Do some shit
-		write(STDOUT_FILENO,"MERDA\n",6);
-	}
-
-	return 0;
-}
-
-
