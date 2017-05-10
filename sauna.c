@@ -89,7 +89,7 @@ void enter( Request *request ) {
   for(uint32 i = 0; i < num_seats; i++)
     if(requests[i] == NULL){
       requests[i] = malloc(sizeof(Request));
-      request->resend_flag = 0;
+      request->status |= TREATED;
       memmove(requests[i], request, sizeof(Request));
       break;
     }
@@ -115,7 +115,7 @@ int sameGender(Request *request) {
 }
 
 void reject(Request *request){
-  request->resend_flag = 1;
+  request->status |= (REJECTED | SEND);
   request->times_rejected++;
 }
 

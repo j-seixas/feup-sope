@@ -30,26 +30,26 @@ int openFifos(int *rejected_fd, int *entry_fd) {
   return (*rejected_fd < 0 || *entry_fd < 0);
 }
 
-char requestsHandled() {
-	for (uint32 i = 0 ; i < num_requests ; i++){
-		if(requests[i] != NULL)
-			return 0;
-	}
-	return 1;
+char isHandled(Request *request) {
+		return (request->status & TREATED) || (request->status & DISCARDED);
 }
 
 void sendRequests(int entry_fd){
-	while( !requestsHandled() ){
+	char allHandled = 0;
+	while( !allHandled ){
+		allHandled = 1;
 		for (uint32 i = 0 ; i < num_requests ; i++){
-			if(requests[i] != NULL) {
-				if(requests[i]->times_rejected < 3
-				&& requests[i]->resend_flag) {
-					requests[i]->resend_flag = 0;
-					printf("Sender -> Serial: %lu, Rejected: %d, Flag: %d\n", requests[i]->serial_number, requests[i]->times_rejected, requests[i]->resend_flag);
-					write(entry_fd, requests[i], sizeof(Request));
+			if( !isHandled(requests[i]) ) {
+				if( requests[i]->times_rejected < 3 ) {
+					if( requests[i]->status & SEND ) {
+						requests[i]->status &= !SEND;
+						printf("Sender -> Serial: %lu, Rejected: %d, Status: %d\n", requests[i]->serial_number, requests[i]->times_rejected, requests[i]->status);
+						write(entry_fd, requests[i], sizeof(Request));
+					}
+				} else {
+					requests[i]->status |= DISCARDED;
 				}
-				else
-					requests[i] = NULL;
+				allHandled = 0;
 			}
 		}
 	}
@@ -57,13 +57,14 @@ void sendRequests(int entry_fd){
 
 void* handleResults(void* rejected_fd){
 	Request request;
-	while( !requestsHandled() ){
+	char allHandled = 0;
+	while( !allHandled ) {
 		read(*((int*)rejected_fd), &request, sizeof(Request));
-		printf("Handler -> Serial: %lu, Rejected: %d, Flag: %d\n", request.serial_number, request.times_rejected, request.resend_flag);
-		for (uint32 i = 0 ; i < num_requests ; i++){
+		printf("Handler -> Serial: %lu, Rejected: %d, Status: %d\n", request.serial_number, request.times_rejected, request.status);
+		for (uint32 i = 0 ; i < num_requests ; i++) {
+			allHandled &= isHandled(requests[i]);
 			if(requests[i]->serial_number == request.serial_number) {
 				memmove(requests[i], &request, sizeof(Request));
-				break;
 			}
 		}
 	}
@@ -83,7 +84,7 @@ void generateRequests() {
 		requests[i]->gender = rand() % 2 ? 'M' : 'F';
 		requests[i]->time_spent = (rand() % max_time) + 1;
 		requests[i]->times_rejected = 0;
-		requests[i]->resend_flag = 1;
+		requests[i]->status = SEND;
 		printf("Generator -> Serial: %lu, Gender: %c, Time: %lu\n", requests[i]->serial_number, requests[i]->gender, requests[i]->time_spent);
 	}
 }

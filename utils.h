@@ -17,6 +17,13 @@
 #define ENTRY_PATH     "/tmp/entry"
 #define FIFO_MODE      0600
 
+#define BIT(x) (1<<(x))
+
+#define SEND        BIT(0)
+#define REJECTED    BIT(1)
+#define TREATED     BIT(2)
+#define DISCARDED   BIT(3)
+
 typedef unsigned int uint32;
 typedef unsigned long int uint64;
 
@@ -37,7 +44,7 @@ typedef struct {
   uint64 time_spent;
   char gender;
   char times_rejected;
-  char resend_flag;
+  char status;
 } Request;
 
 /**
