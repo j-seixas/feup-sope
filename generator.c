@@ -70,9 +70,9 @@ void* handleResults(void* rejected_fd){
 	return 0;
 }
 
-pthread_t initResultReader(int rejected_fd) {
+pthread_t initResultReader(int *rejected_fd) {
 	pthread_t thread;
-	pthread_create(&thread, NULL, handleResults, &rejected_fd);
+	pthread_create(&thread, NULL, handleResults, rejected_fd);
 	return thread;
 }
 
@@ -102,7 +102,7 @@ int main (int argc , char *argv[] ){
 	printf("Opened fifos\n");
 
 	generateRequests();
-	pthread_t thread = initResultReader(rejected_fd);
+	pthread_t thread = initResultReader(&rejected_fd);
 	sendRequests(entry_fd);
 
 	pthread_join(thread, NULL);
