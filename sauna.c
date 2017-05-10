@@ -59,28 +59,24 @@ int openFifos(int *rejected_fd, int *entry_fd) {
   return (*rejected_fd < 0 || *entry_fd < 0);
 }
 
-/**
- *  @brief       Processes the leave of a user
- *  @param[in]   request  The accepted user request
- */
-void leave(Request *request) {
-  num_seats_available++;
-  if(num_seats_available == num_seats)
-    curr_gender = 0;
-  for(uint32 i = 0; i < num_seats; i++)
-    if(requests[i] != NULL)
-      if(requests[i]->serial_number == request->serial_number){
+void* waitAndLeave( void *serial_number ){
+  for(uint32 i = 0; i < num_seats; i++) {
+    if(requests[i] != NULL) {
+      if(requests[i]->serial_number == *((uint64*)serial_number)){
+        uint64 sleep_time = requests[i]->time_spent;
+        printf("Going to sleep %luus\n", sleep_time);
+        usleep(sleep_time);
+        printf("Finished sleeping\n");
+        num_seats_available++;
+        if(num_seats_available == num_seats)
+          curr_gender = 0;
         requests[i] = NULL;
-        break;
+        free(serial_number);
+        return (void*)0;
       }
-}
-
-void* waitForUser( void *request ){
-  printf("Going to sleep %luus\n", ((Request*)request)->time_spent);
-  usleep(((Request*)request)->time_spent);
-  printf("Finished sleeping\n");
-  leave(request);
-  return 0;
+    }
+  }
+  return (void*)1;
 }
 
 /**
@@ -90,15 +86,17 @@ void* waitForUser( void *request ){
 void enter( Request *request ) {
   num_seats_available--;
   curr_gender = request->gender;
+  uint64 *serial_number = malloc(sizeof(uint64));
   for(uint32 i = 0; i < num_seats; i++)
     if(requests[i] == NULL){
       requests[i] = malloc(sizeof(Request));
       request->status = TREATED;
       memmove(requests[i], request, sizeof(Request));
+      *serial_number = requests[i]->serial_number;
       break;
-    }
+  }
   pthread_t thread;
-  pthread_create(&thread, NULL, waitForUser, (void*)request);
+  pthread_create(&thread, NULL, waitAndLeave, (void*)serial_number);
 }
 
 void putOnHold() {

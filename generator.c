@@ -58,21 +58,25 @@ void sendRequests(int entry_fd){
 
 void* handleResults(void* rejected_fd){
 	Request request;
-	char allHandled = 0;
-	while( !allHandled ) {
-		allHandled = 1;
+	while( 1 ) {
+		char allHandled = 1;
+		for (uint32 i = 0 ; i < num_requests ; i++) {
+			if( !isHandled(requests[i]) )
+				allHandled = 0;
+		}
+		if ( allHandled ) {
+			printf("Handler ended\n");
+			return 0;
+		}
 		read(*((int*)rejected_fd), &request, sizeof(Request));
 		printf("Handler -> Serial: %lu, Rejected: %d, Status: %d\n", request.serial_number, request.times_rejected, request.status);
 		for (uint32 i = 0 ; i < num_requests ; i++) {
-			if( !isHandled(requests[i]) )
-					allHandled = 0;
 			if(requests[i]->serial_number == request.serial_number)
 				memmove(requests[i], &request, sizeof(Request));
 		}
 	}
-	printf("Handler ended\n");
-	return 0;
 }
+
 
 pthread_t initResultReader(int *rejected_fd) {
 	pthread_t thread;
