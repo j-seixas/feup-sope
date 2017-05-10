@@ -42,12 +42,12 @@ void sendRequests(int entry_fd){
 			if( !isHandled(requests[i]) ) {
 				if( requests[i]->times_rejected < 3 ) {
 					if( requests[i]->status & SEND ) {
-						requests[i]->status &= !SEND;
+						requests[i]->status = 0;
 						printf("Sender -> Serial: %lu, Rejected: %d, Status: %d\n", requests[i]->serial_number, requests[i]->times_rejected, requests[i]->status);
 						write(entry_fd, requests[i], sizeof(Request));
 					}
 				} else {
-					requests[i]->status |= DISCARDED;
+					requests[i]->status = DISCARDED;
 				}
 				allHandled = 0;
 			}
@@ -60,13 +60,14 @@ void* handleResults(void* rejected_fd){
 	Request request;
 	char allHandled = 0;
 	while( !allHandled ) {
+		allHandled = 1;
 		read(*((int*)rejected_fd), &request, sizeof(Request));
 		printf("Handler -> Serial: %lu, Rejected: %d, Status: %d\n", request.serial_number, request.times_rejected, request.status);
 		for (uint32 i = 0 ; i < num_requests ; i++) {
-			allHandled &= isHandled(requests[i]);
-			if(requests[i]->serial_number == request.serial_number) {
+			if( !isHandled(requests[i]) )
+					allHandled = 0;
+			if(requests[i]->serial_number == request.serial_number)
 				memmove(requests[i], &request, sizeof(Request));
-			}
 		}
 	}
 	printf("Handler ended\n");

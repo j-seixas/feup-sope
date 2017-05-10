@@ -69,12 +69,14 @@ void leave(Request *request) {
     curr_gender = 0;
   for(uint32 i = 0; i < num_seats; i++)
     if(requests[i] != NULL)
-      if(requests[i]->serial_number == request->serial_number)
+      if(requests[i]->serial_number == request->serial_number){
         requests[i] = NULL;
+        break;
+      }
 }
 
 void* waitForUser( void *request ){
-  printf("Going to sleep %dus\n", ((Request*)request)->time_spent);
+  printf("Going to sleep %luus\n", ((Request*)request)->time_spent);
   usleep(((Request*)request)->time_spent);
   printf("Finished sleeping\n");
   leave(request);
@@ -91,7 +93,7 @@ void enter( Request *request ) {
   for(uint32 i = 0; i < num_seats; i++)
     if(requests[i] == NULL){
       requests[i] = malloc(sizeof(Request));
-      request->status |= TREATED;
+      request->status = TREATED;
       memmove(requests[i], request, sizeof(Request));
       break;
     }
@@ -117,7 +119,7 @@ int sameGender(Request *request) {
 }
 
 void reject(Request *request){
-  request->status |= (REJECTED | SEND);
+  request->status = (REJECTED | SEND);
   request->times_rejected++;
 }
 
