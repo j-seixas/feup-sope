@@ -53,6 +53,7 @@ void sendRequests(int entry_fd){
 			}
 		}
 	}
+	printf("Sender ended\n");
 }
 
 void* handleResults(void* rejected_fd){
@@ -68,6 +69,7 @@ void* handleResults(void* rejected_fd){
 			}
 		}
 	}
+	printf("Handler ended\n");
 	return 0;
 }
 

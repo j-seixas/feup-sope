@@ -74,7 +74,9 @@ void leave(Request *request) {
 }
 
 void* waitForUser( void *request ){
+  printf("Going to sleep %dus\n", ((Request*)request)->time_spent);
   usleep(((Request*)request)->time_spent);
+  printf("Finished sleeping\n");
   leave(request);
   return 0;
 }
