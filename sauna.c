@@ -1,10 +1,19 @@
 #include "utils.h"
 
-static Request **requests;
+static request_t **requests;
 static uint32 num_seats;
 static uint32 num_seats_available;
 static char curr_gender;
+static int log_fd;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+inline static char hasSeats(){
+  return num_seats_available > 0;
+}
+
+inline static char sameGender(request_t *request) {
+  return curr_gender == 0 || curr_gender == request->gender;
+}
 
 /**
  *  @brief       Reads a request from the entry fifo
@@ -12,8 +21,8 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
  *  @param[in]   entry_fd  The file descriptor of the entry fifo
  *  @return      Returns whether or not the reading was successful
  */
-int readRequest( Request *request, int entry_fd ) {
-  return read(entry_fd, request, sizeof(Request)) == sizeof(Request);
+int readRequest( request_t *request, int entry_fd ) {
+  return read(entry_fd, request, sizeof(request_t)) == sizeof(request_t);
 }
 
 /**
@@ -22,8 +31,8 @@ int readRequest( Request *request, int entry_fd ) {
  *  @param[in]  rejected_fd  The file descriptor of the rejected fifo
  *  @return     Returns whether or not the writing was successful
  */
-int sendResult( Request *request, int rejected_fd ) {
-    return write(rejected_fd, request, sizeof(Request)) == sizeof(Request);
+int sendResult( request_t *request, int rejected_fd ) {
+    return write(rejected_fd, request, sizeof(request_t)) == sizeof(request_t);
 }
 
 /**
@@ -40,10 +49,15 @@ int init(const int argc, char *argv[]) {
 
   num_seats = strtol(argv[1],NULL,10);
   num_seats_available = num_seats;
-  requests = malloc(num_seats * sizeof(Request*));
+  requests = malloc(num_seats * sizeof(request_t*));
   curr_gender = 0;
   for(uint32 i = 0; i < num_seats; i++)
     requests[i] = NULL;
+
+  if ((log_fd = openLogFile( SAUNA_LOGFILE )) == -1){
+    perror("Error opening sauna log file ");
+    exit(2);
+  }
 
   return 0;
 }
@@ -86,7 +100,7 @@ void* waitAndLeave( void *serial_number ){
  *  @brief       Lets a user enter the sauna
  *  @param[in]  request  The accepted user request
  */
-void enter( Request *request ) {
+void enter( request_t *request ) {
   pthread_mutex_lock(&mutex);
   num_seats_available--;
   curr_gender = request->gender;
@@ -94,9 +108,9 @@ void enter( Request *request ) {
   uint64 *serial_number = malloc(sizeof(uint64));
   for(uint32 i = 0; i < num_seats; i++){
     if(requests[i] == NULL){
-      requests[i] = malloc(sizeof(Request));
+      requests[i] = malloc(sizeof(request_t));
       request->status = TREATED;
-      memmove(requests[i], request, sizeof(Request));
+      memmove(requests[i], request, sizeof(request_t));
       *serial_number = requests[i]->serial_number;
       break;
     }
@@ -105,6 +119,9 @@ void enter( Request *request ) {
   pthread_create(&thread, NULL, waitAndLeave, (void*)serial_number);
 }
 
+/**
+ * @brief Puts a request waiting for a free seat
+ */
 void putOnHold() {
   while(1) {
     for(uint32 i = 0; i < num_seats; i++)
@@ -113,16 +130,7 @@ void putOnHold() {
   }
 }
 
-int hasSeats() {
-  return num_seats_available > 0;
-}
-
-int sameGender(Request *request) {
-  return (curr_gender == 0)
-      || (curr_gender == request->gender);
-}
-
-void reject(Request *request) {
+void reject(request_t *request){
   request->status = (REJECTED | SEND);
   request->times_rejected++;
 }
@@ -131,7 +139,7 @@ void reject(Request *request) {
 int main(int argc, char *argv[]) {
   int rejected_fd;
   int entry_fd;
-  Request *request = malloc(sizeof(Request));
+  request_t *request = malloc(sizeof(request_t));
 
   if ( init(argc, argv) )
     exit(1);
