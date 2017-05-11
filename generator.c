@@ -8,6 +8,7 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
 char *buildLogString( gen_log_t info );
+void numToString( char *string , long int number, char decimal_flag);
 
 inline static char isHandled(request_t *request){
 	return (request->status & TREATED) || (request->status & DISCARDED);
@@ -126,9 +127,6 @@ void generateRequests(uint64 max_time) {
 	}
 }
 
-inline void merda(){
-	printf("MERDA\n");
-}
 
 /**
  * @brief The main function
@@ -146,13 +144,6 @@ int main (int argc , char *argv[] ){
 		exit(1);
 
 	createFifos();
-
-
-	gen_log_t inf;
-	inf.inst = 2.1;
-	printf("GOT HERE %li\n",time(NULL)-init_time);
-	buildLogString(inf);
-
 
 	if( openFifos(&rejected_fd, &entry_fd) )
 		exit(1);
@@ -175,14 +166,34 @@ int main (int argc , char *argv[] ){
 /* ----------------------STRING MANIPULATION SHIT--------------------*/
 
 char *buildLogString( gen_log_t info ){
-	char inst[8], pid[6], p[6], dur[6], sep1[]= " - ", sep2[]=": ";
-    memset(&inst,' ',7);
-    memset(pid,' ',6);
-    memset(p,' ',10),
-    memset(dur,' ',6);
-    sprintf(inst,"%f",info.inst);
-    printf("|%s|\n",inst);
+	char inst[INST_SIZE], pid[PID_SIZE], p[P_SIZE], dur[DUR_SIZE], sep1[]= " - ", sep2[]=": ",
+		 *final=(char*)malloc(sizeof(char)*(INST_SIZE+PID_SIZE+P_SIZE+DUR_SIZE+4*SEP1_SIZE+SEP2_SIZE+1));
+    memset(inst,' ',INST_SIZE);
+    numToString(inst, info.inst,TRUE);
+    memset(pid,' ',PID_SIZE);
+    numToString(pid, info.pid,FALSE);
+    memset(p,' ',P_SIZE);
+    numToString(p, info.p,FALSE);
+    memset(dur,' ',DUR_SIZE);
+    numToString(dur,info.dur,FALSE);
 
-    return NULL;
+    sprintf(final,"%s%s%s%s%s%s%c%s%s%s%s",inst,sep1,pid,sep1,p,sep2,info.g,sep1,dur,sep1,info.tip);
+
+    return final;
 }
 
+void numToString(char *string , long int number, char decimal_flag){
+	int i = countNumbers(number)-1, cont = 0;
+	if(decimal_flag)
+		i++;
+
+	while( i >= 0){
+		if (2 == cont && decimal_flag)
+			string[i--]='.';
+		else{
+			string[i--] = (char)(48+(number % 10));
+			number = number / 10;
+		}
+		cont++;
+	}
+}

@@ -27,6 +27,16 @@
 #define GEN_LOGFILE "/tmp/ger."
 #define SAUNA_LOGFILE "/tmp/bal."
 
+#define TRUE 1
+#define FALSE 0
+
+#define INST_SIZE 10
+#define PID_SIZE 6
+#define P_SIZE 6
+#define DUR_SIZE 6
+#define TIP_SIZE 10
+#define SEP1_SIZE 3
+#define SEP2_SIZE 2
 
 typedef unsigned int uint32;
 typedef unsigned long int uint64;
@@ -80,7 +90,7 @@ typedef struct {
  * The identifier of the message
  */
 typedef struct {
-  double inst;
+  uint64 inst;
   int pid;
   int p;
   char g;
@@ -115,7 +125,7 @@ typedef struct {
  * The identifier of the message
  */
 typedef struct {
-  double inst;
+  uint64 inst;
   int pid;
   int tid;
   int p;
@@ -161,6 +171,15 @@ int openLogFile(char * pathname){
   sprintf(pid,"%d",getpid());
   strcat(path_name,pid);
   return open(path_name, O_CREAT | O_WRONLY);
+}
+
+
+int countNumbers(long int number){
+  int n = 1;
+  while( (number = number / 10) > 0)
+    n++;
+
+  return n;
 }
 
 
