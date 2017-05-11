@@ -171,7 +171,7 @@ int openLogFile(char * pathname){
   memcpy(path_name, pathname,strlen(pathname));
   sprintf(pid,"%d",getpid());
   strcat(path_name,pid);
-  return open(path_name, O_CREAT | O_WRONLY);
+  return open(path_name, O_CREAT | O_WRONLY, 0644);
 }
 
 /**

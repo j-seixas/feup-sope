@@ -72,7 +72,10 @@ void sendRequests(int entry_fd){
 						requests[i]->status = 0;
 						pthread_mutex_unlock(&mutex);
 						write(entry_fd, requests[i], sizeof(request_t));
-						printf("SEND - %s\n",buildLogString(requestToStruct(requests[i])));	
+
+						char *tmp = buildLogString(requestToStruct(requests[i]));
+						write(log_fd,tmp,sizeof(char)*strlen(tmp));
+						printf("SEND - %s",tmp);	
 					}
 				} else {
 					pthread_mutex_lock(&mutex);
@@ -101,7 +104,11 @@ void* handleResults(void* rejected_fd){
 		if ( all_handled )
 			return 0;
 		if(read(*((int*)rejected_fd), &request, sizeof(request_t)) == sizeof(request_t)){
-			printf("HAND - %s\n",buildLogString(requestToStruct(&request)));
+
+			char *tmp = buildLogString(requestToStruct(&request));
+			write(log_fd,tmp,sizeof(char)*strlen(tmp));
+			printf("HAND - %s",tmp);
+
 			for (uint32 i = 0 ; i < num_requests ; i++) {
 				if(requests[i]->serial_number == request.serial_number){
 					pthread_mutex_lock(&mutex);
@@ -174,7 +181,7 @@ char *buildLogString( gen_log_t info ){
 		 *pid =(char*)malloc(sizeof(char)*PID_SIZE) ,
 		 *p   =(char*)malloc(sizeof(char)*P_SIZE),
 		 *dur =(char*)malloc(sizeof(char)*DUR_SIZE),
-		 *final=(char*)malloc(sizeof(char)*(INST_SIZE+PID_SIZE+P_SIZE+DUR_SIZE+5*SEP_SIZE+1));
+		 *final=(char*)malloc(sizeof(char)*(INST_SIZE+PID_SIZE+P_SIZE+DUR_SIZE+5*SEP_SIZE+2));
 
 	inst[INST_SIZE]='\0'; 	memset(inst,' ',INST_SIZE);
 	numToString(inst, info.inst,TRUE);
@@ -185,7 +192,7 @@ char *buildLogString( gen_log_t info ){
 	dur[DUR_SIZE]='\0';		memset(dur,' ',DUR_SIZE);
 	numToString(dur,info.dur,FALSE);
 
-	sprintf(final,"%s | %s | %s : %c | %s | %s",inst,pid,p,info.g,dur,info.tip);
+	sprintf(final,"%s | %s | %s : %c | %s | %s\n",inst,pid,p,info.g,dur,info.tip);
 	free(inst);
 	free(pid);
 	free(p);

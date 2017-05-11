@@ -154,7 +154,11 @@ int main(int argc, char *argv[]) {
     exit(1);
 
   while( readRequest(request, entry_fd) ) {
-    printf("%s\n",buildLogString(requestToStruct(request)));
+
+    char *tmp = buildLogString(requestToStruct(request));
+    write(log_fd,tmp,sizeof(char)*strlen(tmp));
+    printf("%s",tmp);
+
     if( sameGender(request) ) {
       if ( hasSeats() )
         enter(request);
@@ -165,7 +169,10 @@ int main(int argc, char *argv[]) {
     } else
       reject(request);
 
-    printf("%s\n",buildLogString(requestToStruct(request)));
+    tmp = buildLogString(requestToStruct(request));
+    write(log_fd,tmp,sizeof(char)*strlen(tmp));
+    printf("%s",buildLogString(requestToStruct(request)));
+
     sendResult(request, rejected_fd);
   }
   if ( closeFifos(rejected_fd, entry_fd) )
@@ -181,7 +188,7 @@ char *buildLogString( sauna_log_t info ){
        *tid =(char*)malloc(sizeof(char)*TID_SIZE),
        *p   =(char*)malloc(sizeof(char)*P_SIZE),
        *dur =(char*)malloc(sizeof(char)*DUR_SIZE),
-       *final=(char*)malloc(sizeof(char)*(INST_SIZE+PID_SIZE+TID_SIZE+P_SIZE+DUR_SIZE+6*SEP_SIZE+1));
+       *final=(char*)malloc(sizeof(char)*(INST_SIZE+PID_SIZE+TID_SIZE+P_SIZE+DUR_SIZE+6*SEP_SIZE+2));
   
   inst[INST_SIZE]='\0';   memset(inst,' ',INST_SIZE);
   numToString(inst, info.inst,TRUE);
@@ -194,7 +201,7 @@ char *buildLogString( sauna_log_t info ){
   dur[DUR_SIZE]='\0';     memset(dur,' ',DUR_SIZE);
   numToString(dur,info.dur,FALSE);
 
-  sprintf(final,"%s | %s | %s | %s : %c | %s | %s",inst,pid,tid,p,info.g,dur,info.tip);
+  sprintf(final,"%s | %s | %s | %s : %c | %s | %s\n",inst,pid,tid,p,info.g,dur,info.tip);
   free(inst);
   free(pid);
   free(tid);
@@ -207,7 +214,6 @@ sauna_log_t requestToStruct(request_t *req){
   sauna_log_t tmp;
   tmp.inst = microDifference(init_time);
   tmp.pid = getpid();
-  printf("ID - %li\n",pthread_self());
   tmp.tid = (uint64)pthread_self();
   tmp.p = req->serial_number;
   tmp.g = req->gender;
