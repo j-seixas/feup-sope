@@ -6,6 +6,7 @@ static request_t **requests;
 static uint32 num_requests;
 static time_t init_time;
 static int log_fd;
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /**
  * @brief Initializes needed variables and checks number of arguments
@@ -40,7 +41,7 @@ int init(int argc , char *argv[], uint64 *max_time) {
  *  @return      Returns whether or not the fifos were opened
  */
 int openFifos(int *rejected_fd, int *entry_fd) {
-  *rejected_fd = open(REJECTED_PATH, O_RDONLY);
+  *rejected_fd = open(REJECTED_PATH, O_RDONLY | O_NONBLOCK);
   *entry_fd = open(ENTRY_PATH, O_WRONLY);
   return (*rejected_fd < 0 || *entry_fd < 0);
 }
@@ -59,12 +60,16 @@ void sendRequests(int entry_fd){
 			if( !IS_HANDLED(requests[i]->status) ) {
 				if( requests[i]->times_rejected < 3 ) {
 					if( requests[i]->status & SEND ) {
+						pthread_mutex_lock(&mutex);
 						requests[i]->status = 0;
+						pthread_mutex_unlock(&mutex);
 						printf("Sender -> Serial: %lu, Rejected: %d, Status: %d\n", requests[i]->serial_number, requests[i]->times_rejected, requests[i]->status);
 						write(entry_fd, requests[i], sizeof(request_t));
 					}
 				} else {
+					pthread_mutex_lock(&mutex);
 					requests[i]->status = DISCARDED;
+					pthread_mutex_unlock(&mutex);
 				}
 				all_handled = 0;
 			}
@@ -90,11 +95,16 @@ void* handleResults(void* rejected_fd){
 			printf("Handler ended\n");
 			return 0;
 		}
-		read(*((int*)rejected_fd), &request, sizeof(request_t));
-		printf("Handler -> Serial: %lu, Rejected: %d, Status: %d\n", request.serial_number, request.times_rejected, request.status);
-		for (uint32 i = 0 ; i < num_requests ; i++) {
-			if(requests[i]->serial_number == request.serial_number)
-				memmove(requests[i], &request, sizeof(request_t));
+
+		if(read(*((int*)rejected_fd), &request, sizeof(request_t)) == sizeof(request_t)){
+			printf("Handler -> Serial: %lu, Rejected: %d, Status: %d\n", request.serial_number, request.times_rejected, request.status);
+			for (uint32 i = 0 ; i < num_requests ; i++) {
+				if(requests[i]->serial_number == request.serial_number){
+					pthread_mutex_lock(&mutex);
+					memmove(requests[i], &request, sizeof(request_t));
+					pthread_mutex_unlock(&mutex);
+				}
+			}
 		}
 	}
 }
