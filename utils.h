@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
+
 #include <errno.h>
 
 #include <fcntl.h>
@@ -9,6 +9,7 @@
 #include <signal.h>
 #include <pthread.h>
 
+#include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/syscall.h>
@@ -30,10 +31,10 @@
 #define TRUE 1
 #define FALSE 0
 
-#define INST_SIZE 10
-#define PID_SIZE 6
+#define INST_SIZE 11
+#define PID_SIZE 5
 #define P_SIZE 6
-#define DUR_SIZE 6
+#define DUR_SIZE 4
 #define TIP_SIZE 10
 #define SEP1_SIZE 3
 #define SEP2_SIZE 2
@@ -177,6 +178,7 @@ int openLogFile(char * pathname){
  * @brief Counts how many numbers a given number has
  * @param[in] number The number to count
  * @return Number of numbers the number has
+ */
 int countNumbers(long int number){
   int n = 1;
   while( (number = number / 10) > 0)
@@ -207,28 +209,13 @@ void numToString(char *string , long int number, char decimal_flag){
       number = number / 10;
     }
     cont++;
+
   }
 }
 
-/**
- * @brief Builds the string to be printed to the log file
- * @param[in] info Information to be printed to the log file (see struct gen_log_t)
- * @return String to be printed
- */
-char *buildLogString( gen_log_t info ){
-  char inst[INST_SIZE], pid[PID_SIZE], p[P_SIZE], dur[DUR_SIZE], sep1[]= " - ", sep2[]=": ",
-     *final=(char*)malloc(sizeof(char)*(INST_SIZE+PID_SIZE+P_SIZE+DUR_SIZE+4*SEP1_SIZE+SEP2_SIZE+1));
-    memset(inst,' ',INST_SIZE);
-    numToString(inst, info.inst,TRUE);
-    memset(pid,' ',PID_SIZE);
-    numToString(pid, info.pid,FALSE);
-    memset(p,' ',P_SIZE);
-    numToString(p, info.p,FALSE);
-    memset(dur,' ',DUR_SIZE);
-    numToString(dur,info.dur,FALSE);
-
-    sprintf(final,"%s%s%s%s%s%s%c%s%s%s%s",inst,sep1,pid,sep1,p,sep2,info.g,sep1,dur,sep1,info.tip);
-
-    return final;
+uint64 microDifference(struct timeval init){
+  struct timeval curr;
+  gettimeofday(&curr,NULL);
+  return (((curr.tv_sec-init.tv_sec)*1000000L + (curr.tv_usec-init.tv_usec))/10);
 }
 

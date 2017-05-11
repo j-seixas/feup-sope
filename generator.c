@@ -2,13 +2,13 @@
 
 static request_t **requests;
 static uint32 num_requests;
-static time_t init_time;
+static struct timeval init_time;
 static int log_fd;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
 char *buildLogString( gen_log_t info );
-void numToString( char *string , long int number, char decimal_flag);
+gen_log_t requestToStruct( request_t *req);
 
 inline static char isHandled(request_t *request){
 	return (request->status & TREATED) || (request->status & DISCARDED);
@@ -72,6 +72,7 @@ void sendRequests(int entry_fd){
 						requests[i]->status = 0;
 						pthread_mutex_unlock(&mutex);
 						write(entry_fd, requests[i], sizeof(request_t));
+						printf("%s\n",buildLogString(requestToStruct(requests[i])));
 					}
 				} else {
 					pthread_mutex_lock(&mutex);
@@ -127,7 +128,6 @@ void generateRequests(uint64 max_time) {
 	}
 }
 
-
 /**
  * @brief The main function
  * @param[in] argc How many arguments where passed into the program
@@ -135,7 +135,7 @@ void generateRequests(uint64 max_time) {
  * @return 0 if all OK, 1 otherwise
  */
 int main (int argc , char *argv[] ){
-	init_time=time(NULL);
+	gettimeofday(&init_time,NULL);
 	int rejected_fd;
   	int entry_fd;
   	uint64 max_time;
@@ -163,4 +163,37 @@ int main (int argc , char *argv[] ){
 	return 0;
 }
 
-/* ----------------------STRING MANIPULATION SHIT--------------------*/
+/**
+ * @brief Builds the string to be printed to the log file
+ * @param[in] info Information to be printed to the log file (see struct gen_log_t)
+ * @return String to be printed
+ */
+char *buildLogString( gen_log_t info ){
+  char inst[INST_SIZE], pid[PID_SIZE], p[P_SIZE], dur[DUR_SIZE], sep1[]= " - ", sep2[]=": ",
+     *final=(char*)malloc(sizeof(char)*(INST_SIZE+PID_SIZE+P_SIZE+DUR_SIZE+4*SEP1_SIZE+SEP2_SIZE+1));
+
+    memset(inst,' ',INST_SIZE);
+    numToString(inst, info.inst,TRUE);
+    memset(pid,' ',PID_SIZE);
+    numToString(pid, info.pid,FALSE);
+    memset(p,' ',P_SIZE);
+    numToString(p, info.p,FALSE);
+    memset(dur,' ',DUR_SIZE);
+    numToString(dur,info.dur,FALSE);
+    sprintf(final,"%s%s%s%s%s%s%c%s%s%s%s",inst,sep1,pid,sep1,p,sep2,info.g,sep1,dur,sep1,info.tip);
+
+    return final;
+}
+
+gen_log_t requestToStruct( request_t *req){
+	gen_log_t tmp;
+	tmp.inst = microDifference(init_time);
+	tmp.pid = getpid();
+	tmp.p = req->serial_number;
+	tmp.g = req->gender;
+	tmp.dur = req->time_spent;
+	tmp.tip = ((req->status & SEND || req->status & TREATED) ? "PEDIDO" :
+			  ((req->status & REJECTED) ? "REJEITADO" : "DESCARTADO"));
+
+	return tmp;
+}
