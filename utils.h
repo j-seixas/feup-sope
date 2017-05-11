@@ -31,13 +31,12 @@
 #define TRUE 1
 #define FALSE 0
 
-#define INST_SIZE 11
+#define INST_SIZE 10
 #define PID_SIZE 5
 #define P_SIZE 6
 #define DUR_SIZE 4
 #define TIP_SIZE 10
 #define SEP1_SIZE 3
-#define SEP2_SIZE 2
 
 typedef unsigned int uint32;
 typedef unsigned long int uint64;

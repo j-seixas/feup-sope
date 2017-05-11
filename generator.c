@@ -169,19 +169,26 @@ int main (int argc , char *argv[] ){
  * @return String to be printed
  */
 char *buildLogString( gen_log_t info ){
-  char inst[INST_SIZE], pid[PID_SIZE], p[P_SIZE], dur[DUR_SIZE], sep1[]= " - ", sep2[]=": ",
-     *final=(char*)malloc(sizeof(char)*(INST_SIZE+PID_SIZE+P_SIZE+DUR_SIZE+4*SEP1_SIZE+SEP2_SIZE+1));
-
-    memset(inst,' ',INST_SIZE);
+	char *inst=(char*)malloc(sizeof(char)*INST_SIZE),
+		 *pid =(char*)malloc(sizeof(char)*PID_SIZE) ,
+		 *p   =(char*)malloc(sizeof(char)*P_SIZE),
+		 *dur =(char*)malloc(sizeof(char)*DUR_SIZE),
+     	 *final=(char*)malloc(sizeof(char)*(INST_SIZE+PID_SIZE+P_SIZE+DUR_SIZE+5*SEP1_SIZE+1));
+    
+    inst[INST_SIZE]='\0'; 	memset(inst,' ',INST_SIZE);
     numToString(inst, info.inst,TRUE);
-    memset(pid,' ',PID_SIZE);
+    pid[PID_SIZE]='\0'; 	memset(pid,' ',PID_SIZE);
     numToString(pid, info.pid,FALSE);
-    memset(p,' ',P_SIZE);
+    p[P_SIZE]='\0'; 		memset(p,' ',P_SIZE);
     numToString(p, info.p,FALSE);
-    memset(dur,' ',DUR_SIZE);
+    dur[DUR_SIZE]='\0';		memset(dur,' ',DUR_SIZE);
     numToString(dur,info.dur,FALSE);
-    sprintf(final,"%s%s%s%s%s%s%c%s%s%s%s",inst,sep1,pid,sep1,p,sep2,info.g,sep1,dur,sep1,info.tip);
 
+    sprintf(final,"%s | %s | %s : %c | %s | %s",inst,pid,p,info.g,dur,info.tip);
+    free(inst);
+    free(pid);
+    free(p);
+    free(dur);
     return final;
 }
 
