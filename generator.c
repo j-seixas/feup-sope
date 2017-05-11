@@ -49,9 +49,9 @@ int init(int argc , char *argv[], uint64 *max_time) {
  *  @return      Returns whether or not the fifos were opened
  */
 int openFifos(int *rejected_fd, int *entry_fd) {
-  *rejected_fd = open(REJECTED_PATH, O_RDONLY | O_NONBLOCK);
-  *entry_fd = open(ENTRY_PATH, O_WRONLY);
-  return (*rejected_fd < 0 || *entry_fd < 0);
+	*rejected_fd = open(REJECTED_PATH, O_RDONLY | O_NONBLOCK);
+	*entry_fd = open(ENTRY_PATH, O_WRONLY);
+	return (*rejected_fd < 0 || *entry_fd < 0);
 }
 
 /**
@@ -72,7 +72,7 @@ void sendRequests(int entry_fd){
 						requests[i]->status = 0;
 						pthread_mutex_unlock(&mutex);
 						write(entry_fd, requests[i], sizeof(request_t));
-						printf("%s\n",buildLogString(requestToStruct(requests[i])));
+						printf("SEND - %s\n",buildLogString(requestToStruct(requests[i])));	
 					}
 				} else {
 					pthread_mutex_lock(&mutex);
@@ -99,8 +99,9 @@ void* handleResults(void* rejected_fd){
 				all_handled = 0;
 		}
 		if ( all_handled )
-				return 0;
+			return 0;
 		if(read(*((int*)rejected_fd), &request, sizeof(request_t)) == sizeof(request_t)){
+			printf("HAND - %s\n",buildLogString(requestToStruct(&request)));
 			for (uint32 i = 0 ; i < num_requests ; i++) {
 				if(requests[i]->serial_number == request.serial_number){
 					pthread_mutex_lock(&mutex);
@@ -137,8 +138,8 @@ void generateRequests(uint64 max_time) {
 int main (int argc , char *argv[] ){
 	gettimeofday(&init_time,NULL);
 	int rejected_fd;
-  	int entry_fd;
-  	uint64 max_time;
+	int entry_fd;
+	uint64 max_time;
 
 	if( init(argc, argv, &max_time) )
 		exit(1);
@@ -173,23 +174,23 @@ char *buildLogString( gen_log_t info ){
 		 *pid =(char*)malloc(sizeof(char)*PID_SIZE) ,
 		 *p   =(char*)malloc(sizeof(char)*P_SIZE),
 		 *dur =(char*)malloc(sizeof(char)*DUR_SIZE),
-     	 *final=(char*)malloc(sizeof(char)*(INST_SIZE+PID_SIZE+P_SIZE+DUR_SIZE+5*SEP1_SIZE+1));
-    
-    inst[INST_SIZE]='\0'; 	memset(inst,' ',INST_SIZE);
-    numToString(inst, info.inst,TRUE);
-    pid[PID_SIZE]='\0'; 	memset(pid,' ',PID_SIZE);
-    numToString(pid, info.pid,FALSE);
-    p[P_SIZE]='\0'; 		memset(p,' ',P_SIZE);
-    numToString(p, info.p,FALSE);
-    dur[DUR_SIZE]='\0';		memset(dur,' ',DUR_SIZE);
-    numToString(dur,info.dur,FALSE);
+		 *final=(char*)malloc(sizeof(char)*(INST_SIZE+PID_SIZE+P_SIZE+DUR_SIZE+5*SEP_SIZE+1));
 
-    sprintf(final,"%s | %s | %s : %c | %s | %s",inst,pid,p,info.g,dur,info.tip);
-    free(inst);
-    free(pid);
-    free(p);
-    free(dur);
-    return final;
+	inst[INST_SIZE]='\0'; 	memset(inst,' ',INST_SIZE);
+	numToString(inst, info.inst,TRUE);
+	pid[PID_SIZE]='\0'; 	memset(pid,' ',PID_SIZE);
+	numToString(pid, info.pid,FALSE);
+	p[P_SIZE]='\0'; 		memset(p,' ',P_SIZE);
+	numToString(p, info.p,FALSE);
+	dur[DUR_SIZE]='\0';		memset(dur,' ',DUR_SIZE);
+	numToString(dur,info.dur,FALSE);
+
+	sprintf(final,"%s | %s | %s : %c | %s | %s",inst,pid,p,info.g,dur,info.tip);
+	free(inst);
+	free(pid);
+	free(p);
+	free(dur);
+	return final;
 }
 
 gen_log_t requestToStruct( request_t *req){
@@ -200,7 +201,7 @@ gen_log_t requestToStruct( request_t *req){
 	tmp.g = req->gender;
 	tmp.dur = req->time_spent;
 	tmp.tip = ((req->status & SEND || req->status & TREATED) ? "PEDIDO" :
-			  ((req->status & REJECTED) ? "REJEITADO" : "DESCARTADO"));
+		((req->status & REJECTED) ? "REJEITADO" : "DESCARTADO"));
 
 	return tmp;
 }

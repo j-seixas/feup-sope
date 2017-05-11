@@ -5,7 +5,11 @@ static uint32 num_seats;
 static uint32 num_seats_available;
 static char curr_gender;
 static int log_fd;
+static struct timeval init_time;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+char *buildLogString( sauna_log_t info );
+sauna_log_t requestToStruct( request_t *req);
 
 inline static char hasSeats(){
   return num_seats_available > 0;
@@ -32,7 +36,7 @@ int readRequest( request_t *request, int entry_fd ) {
  *  @return     Returns whether or not the writing was successful
  */
 int sendResult( request_t *request, int rejected_fd ) {
-    return write(rejected_fd, request, sizeof(request_t)) == sizeof(request_t);
+  return write(rejected_fd, request, sizeof(request_t)) == sizeof(request_t);
 }
 
 /**
@@ -127,7 +131,7 @@ void putOnHold() {
     for(uint32 i = 0; i < num_seats; i++)
       if(requests[i] == NULL)
         return;
-  }
+    }
 }
 
 void reject(request_t *request){
@@ -137,6 +141,7 @@ void reject(request_t *request){
 
 
 int main(int argc, char *argv[]) {
+  gettimeofday(&init_time, NULL);
   int rejected_fd;
   int entry_fd;
   request_t *request = malloc(sizeof(request_t));
@@ -144,29 +149,69 @@ int main(int argc, char *argv[]) {
   if ( init(argc, argv) )
     exit(1);
   createFifos();
+
   if ( openFifos(&rejected_fd, &entry_fd) )
     exit(1);
 
   while( readRequest(request, entry_fd) ) {
-
-  if( sameGender(request) ) {
-    if ( hasSeats() ){
-      enter(request);
-    } else {
-      putOnHold();
-      enter(request);
-    }
-  } else {
+    if( sameGender(request) ) {
+      if ( hasSeats() )
+        enter(request);
+      else {
+        putOnHold();
+        enter(request);
+      }
+    } else
       reject(request);
-  }
 
+    printf("%s\n",buildLogString(requestToStruct(request)));
     sendResult(request, rejected_fd);
   }
-
   if ( closeFifos(rejected_fd, entry_fd) )
     exit(1);
-
   pthread_exit(NULL);
-
   return 0;
+}
+
+
+char *buildLogString( sauna_log_t info ){
+  char *inst=(char*)malloc(sizeof(char)*INST_SIZE),
+       *pid =(char*)malloc(sizeof(char)*PID_SIZE),
+       *tid =(char*)malloc(sizeof(char)*TID_SIZE),
+       *p   =(char*)malloc(sizeof(char)*P_SIZE),
+       *dur =(char*)malloc(sizeof(char)*DUR_SIZE),
+       *final=(char*)malloc(sizeof(char)*(INST_SIZE+PID_SIZE+TID_SIZE+P_SIZE+DUR_SIZE+6*SEP_SIZE+1));
+  
+  inst[INST_SIZE]='\0';   memset(inst,' ',INST_SIZE);
+  numToString(inst, info.inst,TRUE);
+  pid[PID_SIZE]='\0';     memset(pid,' ',PID_SIZE);
+  numToString(pid, info.pid,FALSE);
+  tid[TID_SIZE]='\0';     memset(tid,' ',TID_SIZE);
+  numToString(tid,info.tid,FALSE);
+  p[P_SIZE]='\0';         memset(p,' ',P_SIZE);
+  numToString(p, info.p,FALSE);
+  dur[DUR_SIZE]='\0';     memset(dur,' ',DUR_SIZE);
+  numToString(dur,info.dur,FALSE);
+
+  sprintf(final,"%s | %s | %s | %s : %c | %s | %s",inst,pid,tid,p,info.g,dur,info.tip);
+  free(inst);
+  free(pid);
+  free(tid);
+  free(p);
+  free(dur);
+  return final;
+}
+
+sauna_log_t requestToStruct(request_t *req){
+  sauna_log_t tmp;
+  tmp.inst = microDifference(init_time);
+  tmp.pid = getpid();
+  tmp.tid = pthread_self();
+  tmp.p = req->serial_number;
+  tmp.g = req->gender;
+  tmp.dur = req->time_spent;
+  tmp.tip = ((req->status & SEND || req->status & TREATED) ? "PEDIDO" :
+    ((req->status & REJECTED) ? "REJEITADO" : "DESCARTADO"));
+
+  return tmp;
 }
