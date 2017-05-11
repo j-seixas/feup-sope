@@ -4,6 +4,7 @@ static Request **requests;
 static uint32 num_seats;
 static uint32 num_seats_available;
 static char curr_gender;
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /**
  *  @brief       Reads a request from the entry fifo
@@ -61,20 +62,24 @@ int openFifos(int *rejected_fd, int *entry_fd) {
 
 void* waitAndLeave( void *serial_number ){
   for(uint32 i = 0; i < num_seats; i++) {
+    pthread_mutex_lock(&mutex);
     if(requests[i] != NULL) {
       if(requests[i]->serial_number == *((uint64*)serial_number)){
         uint64 sleep_time = requests[i]->time_spent;
+        pthread_mutex_unlock(&mutex);
         printf("Going to sleep %luus\n", sleep_time);
         usleep(sleep_time);
         printf("Finished sleeping\n");
+        pthread_mutex_lock(&mutex);
         num_seats_available++;
         if(num_seats_available == num_seats)
           curr_gender = 0;
         requests[i] = NULL;
+        pthread_mutex_unlock(&mutex);
         free(serial_number);
         return (void*)0;
-      }
-    }
+      } else pthread_mutex_unlock(&mutex);
+    } else pthread_mutex_unlock(&mutex);
   }
   return (void*)1;
 }
@@ -84,16 +89,19 @@ void* waitAndLeave( void *serial_number ){
  *  @param[in]  request  The accepted user request
  */
 void enter( Request *request ) {
+  pthread_mutex_lock(&mutex);
   num_seats_available--;
   curr_gender = request->gender;
+  pthread_mutex_unlock(&mutex);
   uint64 *serial_number = malloc(sizeof(uint64));
-  for(uint32 i = 0; i < num_seats; i++)
+  for(uint32 i = 0; i < num_seats; i++){
     if(requests[i] == NULL){
       requests[i] = malloc(sizeof(Request));
       request->status = TREATED;
       memmove(requests[i], request, sizeof(Request));
       *serial_number = requests[i]->serial_number;
       break;
+    }
   }
   pthread_t thread;
   pthread_create(&thread, NULL, waitAndLeave, (void*)serial_number);
@@ -116,7 +124,7 @@ int sameGender(Request *request) {
       || (curr_gender == request->gender);
 }
 
-void reject(Request *request){
+void reject(Request *request) {
   request->status = (REJECTED | SEND);
   request->times_rejected++;
 }
