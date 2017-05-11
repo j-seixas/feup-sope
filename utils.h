@@ -58,6 +58,74 @@ typedef struct {
 } request_t;
 
 /**
+ * @struct gen_log_t
+ * @brief Stores the information to be printed to the generator log file
+ * 
+ * @var gen_log_t::inst
+ * Instant when this log was generated
+ *
+ * @var gen_log_t::pid
+ * ID of the process which generated this log
+ *
+ * @var gen_log_t::p
+ * Number of the request
+ *
+ * @var gen_log_t::g
+ * Gender of the request
+ *
+ * @var gen_log_t::dur
+ * Duration of the request
+ *
+ * @var gen_log_t::tip
+ * The identifier of the message
+ */
+typedef struct {
+  double inst;
+  int pid;
+  int p;
+  char g;
+  uint64 dur;
+  char *tip;
+}gen_log_t;
+
+
+/**
+ * @struct sauna_log_t
+ * @brief Stores the information to be printed to the generator log file
+ * 
+ * @var sauna_log_t::inst
+ * Instant when this log was generated
+ *
+ * @var sauna_log_t::pid
+ * ID of the process which generated this log
+ *
+ * @var sauna_log_t::tid
+ * ID of the thread that generated this log
+ *
+ * @var sauna_log_t::p
+ * Number of the request
+ *
+ * @var sauna_log_t::g
+ * Gender of the request
+ *
+ * @var sauna_log_t::dur
+ * Duration of the request
+ *
+ * @var sauna_log_t::tip
+ * The identifier of the message
+ */
+typedef struct {
+  double inst;
+  int pid;
+  int tid;
+  int p;
+  char g;
+  uint64 dur;
+  char *tip;
+}sauna_log_t;
+
+
+/**
  *  @brief   Creates the entry and rejected fifos
  *  @return  Returns whether or not the fifos were created
  */
@@ -96,3 +164,5 @@ int openLogFile(char * pathname){
   free(pid);
   return ret;
 }
+
+
