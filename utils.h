@@ -33,7 +33,7 @@
 
 #define INST_SIZE 10
 #define PID_SIZE 5
-#define TID_SIZE 5
+#define TID_SIZE 18
 #define P_SIZE 6
 #define DUR_SIZE 4
 #define TIP_SIZE 10
@@ -128,7 +128,7 @@ typedef struct {
 typedef struct {
   uint64 inst;
   int pid;
-  int tid;
+  uint64 tid;
   int p;
   char g;
   uint64 dur;

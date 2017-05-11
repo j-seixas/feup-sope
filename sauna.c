@@ -154,6 +154,7 @@ int main(int argc, char *argv[]) {
     exit(1);
 
   while( readRequest(request, entry_fd) ) {
+    printf("%s\n",buildLogString(requestToStruct(request)));
     if( sameGender(request) ) {
       if ( hasSeats() )
         enter(request);
@@ -206,12 +207,13 @@ sauna_log_t requestToStruct(request_t *req){
   sauna_log_t tmp;
   tmp.inst = microDifference(init_time);
   tmp.pid = getpid();
-  tmp.tid = pthread_self();
+  printf("ID - %li\n",pthread_self());
+  tmp.tid = (uint64)pthread_self();
   tmp.p = req->serial_number;
   tmp.g = req->gender;
   tmp.dur = req->time_spent;
-  tmp.tip = ((req->status & SEND || req->status & TREATED) ? "PEDIDO" :
-    ((req->status & REJECTED) ? "REJEITADO" : "DESCARTADO"));
+  tmp.tip = ((req->status & SEND || req->status & TREATED) ? "SERVIDO" :
+    ((req->status & REJECTED) ? "REJEITADO" : "RECEBIDO"));
 
   return tmp;
 }
