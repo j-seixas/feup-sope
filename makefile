@@ -1,6 +1,7 @@
 CC=gcc
-CFLAGS=-Wall -Wextra -pthread -O3
 ODIR=./obj
+IDIR=./
+CFLAGS=-I $(IDIR) -Wall -Wextra -pthread -lrt -O3
 
 default:all
 
@@ -10,10 +11,10 @@ OBJS_PATH=$(patsubst %,$(ODIR)/%,(SAUNA_OBJ))
 GENERATOR_OBJ=generator.o
 GENERATOR_OBJ=$(patsubst %, $(ODIR)/%,(GENERATOR_OBJ))
 
-sauna:sauna.c
+sauna:sauna.c utils.h
 	$(CC) -o $@ $< $(CFLAGS)
 
-generator:generator.c
+generator:generator.c utils.h
 	$(CC) -o $@ $< $(CFLAGS)
 
 
