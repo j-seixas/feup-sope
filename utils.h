@@ -173,7 +173,10 @@ int openLogFile(char * pathname){
   return open(path_name, O_CREAT | O_WRONLY);
 }
 
-
+/**
+ * @brief Counts how many numbers a given number has
+ * @param[in] number The number to count
+ * @return Number of numbers the number has
 int countNumbers(long int number){
   int n = 1;
   while( (number = number / 10) > 0)
@@ -182,4 +185,50 @@ int countNumbers(long int number){
   return n;
 }
 
+/**
+ * @brief Passes the number to the given string without deleting the unnecessary memory
+ * @param[out] string String for number to be copied into
+ * @param[in] number Number to be copied into string
+ * @param[in] decimal_flag Whether or not the number is in decimal
+ * @detail Should be used with a string currently filled with ' ' so that after copying the number the remaining spaces will still be there.
+ * 	   If the decimal flag is set a dot is put so that its a decimal with precision 2.
+ * 	   No string size verification is done so BE CAREFUL!
+ */
+void numToString(char *string , long int number, char decimal_flag){
+  int i = countNumbers(number)-1, cont = 0;
+  if(decimal_flag)
+    i++;
+
+  while( i >= 0){
+    if (2 == cont && decimal_flag)
+      string[i--]='.';
+    else{
+      string[i--] = (char)(48+(number % 10));
+      number = number / 10;
+    }
+    cont++;
+  }
+}
+
+/**
+ * @brief Builds the string to be printed to the log file
+ * @param[in] info Information to be printed to the log file (see struct gen_log_t)
+ * @return String to be printed
+ */
+char *buildLogString( gen_log_t info ){
+  char inst[INST_SIZE], pid[PID_SIZE], p[P_SIZE], dur[DUR_SIZE], sep1[]= " - ", sep2[]=": ",
+     *final=(char*)malloc(sizeof(char)*(INST_SIZE+PID_SIZE+P_SIZE+DUR_SIZE+4*SEP1_SIZE+SEP2_SIZE+1));
+    memset(inst,' ',INST_SIZE);
+    numToString(inst, info.inst,TRUE);
+    memset(pid,' ',PID_SIZE);
+    numToString(pid, info.pid,FALSE);
+    memset(p,' ',P_SIZE);
+    numToString(p, info.p,FALSE);
+    memset(dur,' ',DUR_SIZE);
+    numToString(dur,info.dur,FALSE);
+
+    sprintf(final,"%s%s%s%s%s%s%c%s%s%s%s",inst,sep1,pid,sep1,p,sep2,info.g,sep1,dur,sep1,info.tip);
+
+    return final;
+}
 
