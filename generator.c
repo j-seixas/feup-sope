@@ -8,6 +8,8 @@ static time_t init_time;
 static int log_fd;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
+char *buildLogString( gen_log_t info );
+
 /**
  * @brief Initializes needed variables and checks number of arguments
  * @param[in] argc How many arguments were passed into the program
@@ -31,6 +33,7 @@ int init(int argc , char *argv[], uint64 *max_time) {
 		perror("Error opening generator log file ");
 		exit(2);
 	}
+
 	return 0;
 }
 
@@ -126,6 +129,10 @@ void generateRequests(uint64 max_time) {
 	}
 }
 
+inline void merda(){
+	printf("MERDA\n");
+}
+
 /**
  * @brief The main function
  * @param[in] argc How many arguments where passed into the program
@@ -143,6 +150,13 @@ int main (int argc , char *argv[] ){
 
 	createFifos();
 
+
+	gen_log_t inf;
+	inf.inst = 2.1;
+	printf("GOT HERE %li\n",time(NULL)-init_time);
+	buildLogString(inf);
+
+
 	if( openFifos(&rejected_fd, &entry_fd) )
 		exit(1);
 	printf("Opened fifos\n");
@@ -157,11 +171,20 @@ int main (int argc , char *argv[] ){
 	if( closeFifos(rejected_fd, entry_fd) )
 		exit(1);
 	printf("Closed fifos\n");
-
+	
 	return 0;
 }
 
-
 /* ----------------------STRING MANIPULATION SHIT--------------------*/
 
+char *buildLogString( gen_log_t info ){
+	char inst[8], pid[6], p[6], dur[6], sep1[]= " - ", sep2[]=": ";
+    memset(&inst,' ',7);
+    memset(pid,' ',6);
+    memset(p,' ',10),
+    memset(dur,' ',6);
+    sprintf(inst,"%f",info.inst);
+    printf("|%s|\n",inst);
 
+    return NULL;
+}

@@ -156,13 +156,11 @@ int closeFifos(int rejected_fd, int entry_fd) {
  * @detail It appends the pid of the process to the pathname before opening the file
  */
 int openLogFile(char * pathname){
-  char  *pid;
-  pid = (char*)malloc(sizeof(char)*100);
+  char pid[100], *path_name = (char*)malloc(sizeof(char)*(strlen(pathname)+100));
+  memcpy(path_name, pathname,strlen(pathname));
   sprintf(pid,"%d",getpid());
-  strcat(pathname,pid);
-  int ret = open(pathname, O_CREAT | O_WRONLY);
-  free(pid);
-  return ret;
+  strcat(path_name,pid);
+  return open(path_name, O_CREAT | O_WRONLY);
 }
 
 
