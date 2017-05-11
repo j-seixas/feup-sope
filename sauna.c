@@ -7,9 +7,13 @@ static char curr_gender;
 static int log_fd;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-#define HAS_SEATS (num_seats_available>0)
-#define SAME_GENDER(g) ( (curr_gender==0) || (curr_gender == (g)))
+inline static char hasSeats(){
+  return num_seats_available > 0;
+}
 
+inline static char sameGender(request_t *request) {
+  return curr_gender == 0 || curr_gender == request->gender;
+}
 
 /**
  *  @brief       Reads a request from the entry fifo
@@ -77,9 +81,7 @@ void* waitAndLeave( void *serial_number ){
       if(requests[i]->serial_number == *((uint64*)serial_number)){
         uint64 sleep_time = requests[i]->time_spent;
         pthread_mutex_unlock(&mutex);
-        printf("Going to sleep %luus\n", sleep_time);
         usleep(sleep_time);
-        printf("Finished sleeping\n");
         pthread_mutex_lock(&mutex);
         num_seats_available++;
         if(num_seats_available == num_seats)
@@ -144,37 +146,25 @@ int main(int argc, char *argv[]) {
   createFifos();
   if ( openFifos(&rejected_fd, &entry_fd) )
     exit(1);
-  printf("Opened fifos\n");
-
 
   while( readRequest(request, entry_fd) ) {
-    printf("\nSerial: %lu, Gender: %c, Time: %lu, Rejected: %d\n", request->serial_number, request->gender, request->time_spent, request->times_rejected);
 
-  if( SAME_GENDER(request->gender) ) {
-    printf("Same gender\n");
-    if ( HAS_SEATS ){
-      printf("Has seats\n");
+  if( sameGender(request) ) {
+    if ( hasSeats() ){
       enter(request);
-      printf("Entered\n");
     } else {
-      printf("Waiting for free spot\n");
       putOnHold();
-      printf("Spot freed\n");
       enter(request);
-      printf("Entered\n");
     }
   } else {
       reject(request);
-      printf("Rejected\n");
   }
 
     sendResult(request, rejected_fd);
-    printf("Result sent\n");
   }
 
   if ( closeFifos(rejected_fd, entry_fd) )
     exit(1);
-  printf("Closed fifos\n");
 
   pthread_exit(NULL);
 

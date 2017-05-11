@@ -1,6 +1,4 @@
 #include "utils.h"
-#define IS_HANDLED(n) (((n) & TREATED) || ((n) & DISCARDED))
-
 
 static request_t **requests;
 static uint32 num_requests;
@@ -8,7 +6,13 @@ static time_t init_time;
 static int log_fd;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
+
 char *buildLogString( gen_log_t info );
+
+inline static char isHandled(request_t *request){
+	return (request->status & TREATED) || (request->status & DISCARDED);
+}
+
 
 /**
  * @brief Initializes needed variables and checks number of arguments
@@ -60,13 +64,12 @@ void sendRequests(int entry_fd){
 	while( !all_handled ){
 		all_handled = 1;
 		for (uint32 i = 0 ; i < num_requests ; i++){
-			if( !IS_HANDLED(requests[i]->status) ) {
+			if( !isHandled(requests[i]) ) {
 				if( requests[i]->times_rejected < 3 ) {
 					if( requests[i]->status & SEND ) {
 						pthread_mutex_lock(&mutex);
 						requests[i]->status = 0;
 						pthread_mutex_unlock(&mutex);
-						printf("Sender -> Serial: %lu, Rejected: %d, Status: %d\n", requests[i]->serial_number, requests[i]->times_rejected, requests[i]->status);
 						write(entry_fd, requests[i], sizeof(request_t));
 					}
 				} else {
@@ -78,7 +81,6 @@ void sendRequests(int entry_fd){
 			}
 		}
 	}
-	printf("Sender ended\n");
 }
 
 /**
@@ -91,16 +93,12 @@ void* handleResults(void* rejected_fd){
 	while( 1 ) {
 		char all_handled = 1;
 		for (uint32 i = 0 ; i < num_requests ; i++) {
-			if( !IS_HANDLED(requests[i]->status) )
+			if( !isHandled(requests[i]) )
 				all_handled = 0;
 		}
-		if ( all_handled ) {
-			printf("Handler ended\n");
-			return 0;
-		}
-
+		if ( all_handled )
+				return 0;
 		if(read(*((int*)rejected_fd), &request, sizeof(request_t)) == sizeof(request_t)){
-			printf("Handler -> Serial: %lu, Rejected: %d, Status: %d\n", request.serial_number, request.times_rejected, request.status);
 			for (uint32 i = 0 ; i < num_requests ; i++) {
 				if(requests[i]->serial_number == request.serial_number){
 					pthread_mutex_lock(&mutex);
@@ -125,7 +123,6 @@ void generateRequests(uint64 max_time) {
 		requests[i]->time_spent = (rand() % max_time) + 1;
 		requests[i]->times_rejected = 0;
 		requests[i]->status = SEND;
-		printf("Generator -> Serial: %lu, Gender: %c, Time: %lu\n", requests[i]->serial_number, requests[i]->gender, requests[i]->time_spent);
 	}
 }
 
@@ -159,7 +156,6 @@ int main (int argc , char *argv[] ){
 
 	if( openFifos(&rejected_fd, &entry_fd) )
 		exit(1);
-	printf("Opened fifos\n");
 
 	generateRequests(max_time);
 	pthread_t thread;
@@ -170,6 +166,7 @@ int main (int argc , char *argv[] ){
 
 	if( closeFifos(rejected_fd, entry_fd) )
 		exit(1);
+
 	printf("Closed fifos\n");
 	
 	return 0;
@@ -188,3 +185,4 @@ char *buildLogString( gen_log_t info ){
 
     return NULL;
 }
+
