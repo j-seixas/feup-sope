@@ -46,7 +46,6 @@ void sendRequests(int entry_fd){
 						pthread_mutex_lock(&mutex);
 						requests[i]->status = 0;
 						pthread_mutex_unlock(&mutex);
-						printf("Sender -> Serial: %lu, Rejected: %d, Status: %d\n", requests[i]->serial_number, requests[i]->times_rejected, requests[i]->status);
 						write(entry_fd, requests[i], sizeof(Request));
 					}
 				} else {
@@ -58,7 +57,6 @@ void sendRequests(int entry_fd){
 			}
 		}
 	}
-	printf("Sender ended\n");
 }
 
 void* handleResults(void* rejected_fd){
@@ -69,12 +67,9 @@ void* handleResults(void* rejected_fd){
 			if( !isHandled(requests[i]) )
 				allHandled = 0;
 		}
-		if ( allHandled ) {
-			printf("Handler ended\n");
-			return 0;
-		}
+		if ( allHandled )
+				return 0;
 		if(read(*((int*)rejected_fd), &request, sizeof(Request)) == sizeof(Request)){
-			printf("Handler -> Serial: %lu, Rejected: %d, Status: %d\n", request.serial_number, request.times_rejected, request.status);
 			for (uint32 i = 0 ; i < num_requests ; i++) {
 				if(requests[i]->serial_number == request.serial_number){
 					pthread_mutex_lock(&mutex);
@@ -101,7 +96,6 @@ void generateRequests() {
 		requests[i]->time_spent = (rand() % max_time) + 1;
 		requests[i]->times_rejected = 0;
 		requests[i]->status = SEND;
-		printf("Generator -> Serial: %lu, Gender: %c, Time: %lu\n", requests[i]->serial_number, requests[i]->gender, requests[i]->time_spent);
 	}
 }
 
@@ -116,7 +110,6 @@ int main (int argc , char *argv[] ){
 
 	if( openFifos(&rejected_fd, &entry_fd) )
 		exit(1);
-	printf("Opened fifos\n");
 
 	generateRequests();
 	pthread_t thread = initResultReader(&rejected_fd);
@@ -126,7 +119,6 @@ int main (int argc , char *argv[] ){
 
 	if( closeFifos(rejected_fd, entry_fd) )
 		exit(1);
-	printf("Closed fifos\n");
 
 	return 0;
 }
