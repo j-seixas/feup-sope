@@ -150,7 +150,7 @@ int main(int argc, char *argv[]) {
 
     char *tmp = buildLogString(requestToStruct(request));
     write(log_fd,tmp,sizeof(char)*strlen(tmp));
-    printf("%s",tmp);
+    printf("%s\n",tmp);
 
     if( sameGender(request) ) {
       if ( hasSeats() )
@@ -169,7 +169,7 @@ int main(int argc, char *argv[]) {
 
     tmp = buildLogString(requestToStruct(request));
     write(log_fd,tmp,sizeof(char)*strlen(tmp));
-    printf("%s",buildLogString(requestToStruct(request)));
+    printf("%s\n",tmp);
 
     sendResult(request, rejected_fd);
   }
@@ -222,8 +222,8 @@ sauna_log_t requestToStruct(request_t *req){
   tmp.p = req->serial_number;
   tmp.g = req->gender;
   tmp.dur = req->time_spent;
-  tmp.tip = ((req->status & SEND || req->status & TREATED) ? "SERVIDO" :
-    ((req->status & REJECTED) ? "REJEITADO" : "RECEBIDO"));
+  tmp.tip = (req->status & TREATED)  ? "SERVIDO"   :
+            (req->status & REJECTED) ? "REJEITADO" : "PEDIDO";
 
   return tmp;
 }

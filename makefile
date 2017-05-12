@@ -1,7 +1,7 @@
 CC=gcc
 ODIR=./obj
 IDIR=./
-CFLAGS=-I $(IDIR) -Wall -Wextra -pthread -lrt -O3
+CFLAGS=-I $(IDIR) -Wall -Wextra -pthread -lrt
 
 default:all
 
@@ -19,7 +19,7 @@ generator:generator.c utils.h
 
 
 all:sauna generator
-	
+
 
 clean:
 	@rm -fr $(ODIR) sauna generator

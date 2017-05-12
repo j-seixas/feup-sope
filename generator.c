@@ -8,7 +8,7 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
 char *buildLogString( gen_log_t info );
-gen_log_t requestToStruct( request_t *req);
+gen_log_t requestToStruct( request_t *req, char* tip);
 
 inline static char isHandled(request_t *request){
 	return (request->status & TREATED) || (request->status & DISCARDED);
@@ -71,18 +71,23 @@ void sendRequests(int entry_fd){
 			if( !isHandled(info.requests[i]) ) {
 				if( info.requests[i]->times_rejected < 3 ) {
 					if( info.requests[i]->status & SEND ) {
+						char *tmp = buildLogString(requestToStruct(info.requests[i], "PEDIDO"));
+						write(log_fd,tmp,sizeof(char)*strlen(tmp));
+						printf("%s\n",tmp);
+
 						pthread_mutex_lock(&mutex);
 						info.requests[i]->status = 0;
 						pthread_mutex_unlock(&mutex);
 						write(entry_fd, info.requests[i], sizeof(request_t));
-
-						char *tmp = buildLogString(requestToStruct(info.requests[i]));
-						write(log_fd,tmp,sizeof(char)*strlen(tmp));
-						printf("SEND - %s",tmp);
 					}
 				} else {
 					pthread_mutex_lock(&mutex);
 					info.requests[i]->status = DISCARDED;
+
+					char *tmp = buildLogString(requestToStruct(info.requests[i], "DESCARTADO"));
+					write(log_fd,tmp,sizeof(char)*strlen(tmp));
+					printf("%s\n",tmp);
+
 					info.n_misc[0]++;
 					info.n_misc[ (info.requests[i]->gender == 'M' ? 1 : 2) ]++;
 					pthread_mutex_unlock(&mutex);
@@ -112,11 +117,10 @@ void* handleResults(void* rejected_fd){
 			if( request.status & REJECTED){
 				info.n_rejects[ (request.gender == 'M' ? 1 : 2) ]++;
 				info.n_rejects[0]++;
+				char *tmp = buildLogString(requestToStruct(&request, "REJECTED"));
+				write(log_fd,tmp,sizeof(char)*strlen(tmp));
+				printf("%s\n",tmp);
 			}
-			char *tmp = buildLogString(requestToStruct(&request));
-			write(log_fd,tmp,sizeof(char)*strlen(tmp));
-			printf("HAND - %s",tmp);
-
 			pthread_mutex_lock(&mutex);
 			memmove(info.requests[request.serial_number], &request, sizeof(request_t));
 			pthread_mutex_unlock(&mutex);
@@ -171,7 +175,6 @@ int main (int argc , char *argv[] ){
 	if( closeFifos(rejected_fd, entry_fd) )
 		exit(1);
 
-	printf("Closed fifos\n");
 
 	printf("	GENERATED\nTOTAL = %d | M= %d | F= %d\n",info.n_requests[0],info.n_requests[1],info.n_requests[2]);
 	printf("	REJECTED\nTOTAL = %d | M= %d | F= %d\n",info.n_rejects[0],info.n_rejects[1],info.n_rejects[2]);
@@ -211,15 +214,13 @@ char *buildLogString( gen_log_t info ){
 	return final;
 }
 
-gen_log_t requestToStruct( request_t *req){
+gen_log_t requestToStruct( request_t *req, char* tip){
 	gen_log_t tmp;
 	tmp.inst = microDifference(init_time);
 	tmp.pid = getpid();
 	tmp.p = req->serial_number;
 	tmp.g = req->gender;
 	tmp.dur = req->time_spent;
-	tmp.tip = ((req->status & SEND || req->status & TREATED) ? "PEDIDO" :
-		((req->status & REJECTED) ? "REJEITADO" : "DESCARTADO"));
-
+	tmp.tip = tip;
 	return tmp;
 }
