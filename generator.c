@@ -117,13 +117,9 @@ void* handleResults(void* rejected_fd){
 			write(log_fd,tmp,sizeof(char)*strlen(tmp));
 			printf("HAND - %s",tmp);
 
-			for (uint32 i = 0 ; i < num_requests ; i++) {
-				if(info.requests[i]->serial_number == request.serial_number){
-					pthread_mutex_lock(&mutex);
-					memmove(info.requests[i], &request, sizeof(request_t));
-					pthread_mutex_unlock(&mutex);
-				}
-			}
+			pthread_mutex_lock(&mutex);
+			memmove(info.requests[request.serial_number], &request, sizeof(request_t));
+			pthread_mutex_unlock(&mutex);
 		}
 	}
 }
@@ -136,7 +132,7 @@ void* handleResults(void* rejected_fd){
 void generateRequests(uint64 max_time) {
 	for (uint32 i = 0 ; i < num_requests ; i++){
 		info.requests[i] = malloc(sizeof(request_t));
-		info.requests[i]->serial_number = i;
+		info.requests[i]->serial_number = i; //serial number will be the same as position in array
 		info.requests[i]->gender = rand() % 2 ? 'M' : 'F';
 		info.requests[i]->time_spent = (rand() % max_time) + 1;
 		info.requests[i]->times_rejected = 0;

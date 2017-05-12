@@ -81,26 +81,15 @@ int openFifos(int *rejected_fd, int *entry_fd) {
   return (*rejected_fd < 0 || *entry_fd < 0);
 }
 
-void* waitAndLeave( void *serial_number ){
-  for(uint32 i = 0; i < num_seats; i++) {
-    pthread_mutex_lock(&mutex);
-    if(info.requests[i] != NULL) {
-      if(info.requests[i]->serial_number == *((uint64*)serial_number)){
-        uint64 sleep_time = info.requests[i]->time_spent;
-        pthread_mutex_unlock(&mutex);
-        usleep(sleep_time);
-        pthread_mutex_lock(&mutex);
-        num_seats_available++;
-        if(num_seats_available == num_seats)
-          curr_gender = 0;
-        info.requests[i] = NULL;
-        pthread_mutex_unlock(&mutex);
-        free(serial_number);
-        return (void*)0;
-      } else pthread_mutex_unlock(&mutex);
-    } else pthread_mutex_unlock(&mutex);
-  }
-  return (void*)1;
+void* waitAndLeave( void *pos ){
+  usleep( info.requests[*(uint32 *)pos]->time_spent);
+  pthread_mutex_lock(&mutex);
+  	num_seats_available++;
+  	if(num_seats_available == num_seats)
+    	curr_gender = 0;
+  	info.requests[*(uint32 *)pos] = NULL;
+  pthread_mutex_unlock(&mutex);
+  return (void*)0;
 }
 
 /**
@@ -112,18 +101,17 @@ void enter( request_t *request ) {
   num_seats_available--;
   curr_gender = request->gender;
   pthread_mutex_unlock(&mutex);
-  uint64 *serial_number = malloc(sizeof(uint64));
-  for(uint32 i = 0; i < num_seats; i++){
-    if(info.requests[i] == NULL){
-      info.requests[i] = malloc(sizeof(request_t));
+	uint32 *i = (uint32 *)malloc(sizeof(uint32));
+  for(*i = 0; *i < num_seats; (*i)++){
+    if(info.requests[*i] == NULL){
+      info.requests[*i] = malloc(sizeof(request_t));
       request->status = TREATED;
-      memmove(info.requests[i], request, sizeof(request_t));
-      *serial_number = info.requests[i]->serial_number;
+      memmove(info.requests[*i], request, sizeof(request_t));
       break;
     }
   }
   pthread_t thread;
-  pthread_create(&thread, NULL, waitAndLeave, (void*)serial_number);
+  pthread_create(&thread, NULL, waitAndLeave, i);
 }
 
 /**
