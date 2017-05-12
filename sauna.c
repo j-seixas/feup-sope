@@ -1,6 +1,6 @@
 #include "utils.h"
 
-static request_t **requests;
+static info_t info;
 static uint32 num_seats;
 static uint32 num_seats_available;
 static char curr_gender;
@@ -53,10 +53,13 @@ int init(const int argc, char *argv[]) {
 
   num_seats = strtol(argv[1],NULL,10);
   num_seats_available = num_seats;
-  requests = malloc(num_seats * sizeof(request_t*));
+  info.requests = malloc(num_seats * sizeof(request_t*));
+	info.n_requests[0] = 0; info.n_requests[1] = 0; info.n_requests[2] = 0;
+	info.n_rejects[0] = 0; info.n_rejects[1] = 0; info.n_rejects[2] = 0;
+	info.n_misc[0] = 0; info.n_misc[1] = 0; info.n_misc[2] = 0;
   curr_gender = 0;
   for(uint32 i = 0; i < num_seats; i++)
-    requests[i] = NULL;
+    info.requests[i] = NULL;
 
   if ((log_fd = openLogFile( SAUNA_LOGFILE )) == -1){
     perror("Error opening sauna log file ");
@@ -81,16 +84,16 @@ int openFifos(int *rejected_fd, int *entry_fd) {
 void* waitAndLeave( void *serial_number ){
   for(uint32 i = 0; i < num_seats; i++) {
     pthread_mutex_lock(&mutex);
-    if(requests[i] != NULL) {
-      if(requests[i]->serial_number == *((uint64*)serial_number)){
-        uint64 sleep_time = requests[i]->time_spent;
+    if(info.requests[i] != NULL) {
+      if(info.requests[i]->serial_number == *((uint64*)serial_number)){
+        uint64 sleep_time = info.requests[i]->time_spent;
         pthread_mutex_unlock(&mutex);
         usleep(sleep_time);
         pthread_mutex_lock(&mutex);
         num_seats_available++;
         if(num_seats_available == num_seats)
           curr_gender = 0;
-        requests[i] = NULL;
+        info.requests[i] = NULL;
         pthread_mutex_unlock(&mutex);
         free(serial_number);
         return (void*)0;
@@ -111,11 +114,11 @@ void enter( request_t *request ) {
   pthread_mutex_unlock(&mutex);
   uint64 *serial_number = malloc(sizeof(uint64));
   for(uint32 i = 0; i < num_seats; i++){
-    if(requests[i] == NULL){
-      requests[i] = malloc(sizeof(request_t));
+    if(info.requests[i] == NULL){
+      info.requests[i] = malloc(sizeof(request_t));
       request->status = TREATED;
-      memmove(requests[i], request, sizeof(request_t));
-      *serial_number = requests[i]->serial_number;
+      memmove(info.requests[i], request, sizeof(request_t));
+      *serial_number = info.requests[i]->serial_number;
       break;
     }
   }
@@ -129,7 +132,7 @@ void enter( request_t *request ) {
 void putOnHold() {
   while(1) {
     for(uint32 i = 0; i < num_seats; i++)
-      if(requests[i] == NULL)
+      if(info.requests[i] == NULL)
         return;
     }
 }
@@ -154,6 +157,8 @@ int main(int argc, char *argv[]) {
     exit(1);
 
   while( readRequest(request, entry_fd) ) {
+		info.n_requests[0]++;
+		info.n_requests[ (request->gender == 'M' ? 1 : 2) ]++;
 
     char *tmp = buildLogString(requestToStruct(request));
     write(log_fd,tmp,sizeof(char)*strlen(tmp));
@@ -166,8 +171,13 @@ int main(int argc, char *argv[]) {
         putOnHold();
         enter(request);
       }
-    } else
+			info.n_misc[0]++;
+			info.n_misc[ (request->gender == 'M' ? 1 : 2) ]++;
+    } else{
       reject(request);
+			info.n_rejects[0]++;
+			info.n_rejects[ (request->gender == 'M' ? 1 : 2) ]++;
+		}
 
     tmp = buildLogString(requestToStruct(request));
     write(log_fd,tmp,sizeof(char)*strlen(tmp));
@@ -177,6 +187,10 @@ int main(int argc, char *argv[]) {
   }
   if ( closeFifos(rejected_fd, entry_fd) )
     exit(1);
+
+	printf("	RECEIVED\nTOTAL = %d | M= %d | F= %d\n",info.n_requests[0],info.n_requests[1],info.n_requests[2]);
+	printf("	REJECTED\nTOTAL = %d | M= %d | F= %d\n",info.n_rejects[0],info.n_rejects[1],info.n_rejects[2]);
+	printf("	SERVED\nTOTAL = %d | M= %d | F= %d\n",info.n_misc[0],info.n_misc[1],info.n_misc[2]);
   pthread_exit(NULL);
   return 0;
 }
@@ -189,7 +203,7 @@ char *buildLogString( sauna_log_t info ){
        *p   =(char*)malloc(sizeof(char)*P_SIZE),
        *dur =(char*)malloc(sizeof(char)*DUR_SIZE),
        *final=(char*)malloc(sizeof(char)*(INST_SIZE+PID_SIZE+TID_SIZE+P_SIZE+DUR_SIZE+6*SEP_SIZE+2));
-  
+
   inst[INST_SIZE]='\0';   memset(inst,' ',INST_SIZE);
   numToString(inst, info.inst,TRUE);
   pid[PID_SIZE]='\0';     memset(pid,' ',PID_SIZE);

@@ -1,6 +1,6 @@
 #include "utils.h"
 
-static request_t **requests;
+static info_t info;
 static uint32 num_requests;
 static struct timeval init_time;
 static int log_fd;
@@ -29,10 +29,13 @@ int init(int argc , char *argv[], uint64 *max_time) {
 	}
 	srand(time(NULL));
 	num_requests = strtol(argv[1],NULL,10);
+	info.n_requests[0] = num_requests; info.n_requests[1] = 0; info.n_requests[2] = 0;
+	info.n_rejects[0] = 0; info.n_rejects[1] = 0; info.n_rejects[2] = 0;
+	info.n_misc[0] = 0; info.n_misc[1] = 0; info.n_misc[2] = 0;
 	*max_time  = strtol(argv[2],NULL,10);
-	requests = malloc(num_requests * sizeof(request_t*));
+	info.requests = malloc(num_requests * sizeof(request_t*));
 	for (uint32 i = 0 ; i < num_requests ; i++)
-		requests[i] = NULL;
+		info.requests[i] = NULL;
 
 	if ((log_fd = openLogFile( GEN_LOGFILE )) == -1){
 		perror("Error opening generator log file ");
@@ -65,21 +68,23 @@ void sendRequests(int entry_fd){
 	while( !all_handled ){
 		all_handled = 1;
 		for (uint32 i = 0 ; i < num_requests ; i++){
-			if( !isHandled(requests[i]) ) {
-				if( requests[i]->times_rejected < 3 ) {
-					if( requests[i]->status & SEND ) {
+			if( !isHandled(info.requests[i]) ) {
+				if( info.requests[i]->times_rejected < 3 ) {
+					if( info.requests[i]->status & SEND ) {
 						pthread_mutex_lock(&mutex);
-						requests[i]->status = 0;
+						info.requests[i]->status = 0;
 						pthread_mutex_unlock(&mutex);
-						write(entry_fd, requests[i], sizeof(request_t));
+						write(entry_fd, info.requests[i], sizeof(request_t));
 
-						char *tmp = buildLogString(requestToStruct(requests[i]));
+						char *tmp = buildLogString(requestToStruct(info.requests[i]));
 						write(log_fd,tmp,sizeof(char)*strlen(tmp));
-						printf("SEND - %s",tmp);	
+						printf("SEND - %s",tmp);
 					}
 				} else {
 					pthread_mutex_lock(&mutex);
-					requests[i]->status = DISCARDED;
+					info.requests[i]->status = DISCARDED;
+					info.n_misc[0]++;
+					info.n_misc[ (info.requests[i]->gender == 'M' ? 1 : 2) ]++;
 					pthread_mutex_unlock(&mutex);
 				}
 				all_handled = 0;
@@ -98,21 +103,24 @@ void* handleResults(void* rejected_fd){
 	while( 1 ) {
 		char all_handled = 1;
 		for (uint32 i = 0 ; i < num_requests ; i++) {
-			if( !isHandled(requests[i]) )
+			if( !isHandled(info.requests[i]) )
 				all_handled = 0;
 		}
 		if ( all_handled )
 			return 0;
 		if(read(*((int*)rejected_fd), &request, sizeof(request_t)) == sizeof(request_t)){
-
+			if( request.status & REJECTED){
+				info.n_rejects[ (request.gender == 'M' ? 1 : 2) ]++;
+				info.n_rejects[0]++;
+			}
 			char *tmp = buildLogString(requestToStruct(&request));
 			write(log_fd,tmp,sizeof(char)*strlen(tmp));
 			printf("HAND - %s",tmp);
 
 			for (uint32 i = 0 ; i < num_requests ; i++) {
-				if(requests[i]->serial_number == request.serial_number){
+				if(info.requests[i]->serial_number == request.serial_number){
 					pthread_mutex_lock(&mutex);
-					memmove(requests[i], &request, sizeof(request_t));
+					memmove(info.requests[i], &request, sizeof(request_t));
 					pthread_mutex_unlock(&mutex);
 				}
 			}
@@ -127,12 +135,13 @@ void* handleResults(void* rejected_fd){
  */
 void generateRequests(uint64 max_time) {
 	for (uint32 i = 0 ; i < num_requests ; i++){
-		requests[i] = malloc(sizeof(request_t));
-		requests[i]->serial_number = i;
-		requests[i]->gender = rand() % 2 ? 'M' : 'F';
-		requests[i]->time_spent = (rand() % max_time) + 1;
-		requests[i]->times_rejected = 0;
-		requests[i]->status = SEND;
+		info.requests[i] = malloc(sizeof(request_t));
+		info.requests[i]->serial_number = i;
+		info.requests[i]->gender = rand() % 2 ? 'M' : 'F';
+		info.requests[i]->time_spent = (rand() % max_time) + 1;
+		info.requests[i]->times_rejected = 0;
+		info.requests[i]->status = SEND;
+		info.n_requests[ (info.requests[i]->gender == 'M' ? 1 : 2) ]++;
 	}
 }
 
@@ -167,7 +176,11 @@ int main (int argc , char *argv[] ){
 		exit(1);
 
 	printf("Closed fifos\n");
-	
+
+	printf("	GENERATED\nTOTAL = %d | M= %d | F= %d\n",info.n_requests[0],info.n_requests[1],info.n_requests[2]);
+	printf("	REJECTED\nTOTAL = %d | M= %d | F= %d\n",info.n_rejects[0],info.n_rejects[1],info.n_rejects[2]);
+	printf("	DISCARDED\nTOTAL = %d | M= %d | F= %d\n",info.n_misc[0],info.n_misc[1],info.n_misc[2]);
+
 	return 0;
 }
 

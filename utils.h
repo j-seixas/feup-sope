@@ -69,9 +69,32 @@ typedef struct {
 } request_t;
 
 /**
+ * @struct info
+ * @brief Holds all the requests of the given process and its statistics
+ *
+ * @var info_t::requests
+ * Requests generated / received
+ *
+ * @var info_t::n_requests
+ * Array where 0-> total requests , 1-> Total male requests, 2-> Total female requests
+ *
+ * @var info_t::n_rejects
+ * Array where 0-> total rejects , 1-> total male rejects, 2-> total female rejects
+ *
+ * @var info_t::n_misc
+ * Array where 0-> total discarded/served , 1-> total male discarded/served, 2->total female discarded/served
+ */
+typedef struct {
+	request_t **requests;
+	uint32 n_requests[3];
+	uint32 n_rejects[3];
+	uint32 n_misc[3];
+} info_t;
+
+/**
  * @struct gen_log_t
  * @brief Stores the information to be printed to the generator log file
- * 
+ *
  * @var gen_log_t::inst
  * Instant when this log was generated
  *
@@ -103,7 +126,7 @@ typedef struct {
 /**
  * @struct sauna_log_t
  * @brief Stores the information to be printed to the generator log file
- * 
+ *
  * @var sauna_log_t::inst
  * Instant when this log was generated
  *
@@ -218,4 +241,3 @@ uint64 microDifference(struct timeval init){
   gettimeofday(&curr,NULL);
   return (((curr.tv_sec-init.tv_sec)*1000000L + (curr.tv_usec-init.tv_usec))/10);
 }
-
