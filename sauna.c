@@ -185,12 +185,13 @@ int main(int argc, char *argv[]) {
 
 
 char *buildLogString( sauna_log_t info ){
-  char *inst=(char*)malloc(sizeof(char)*INST_SIZE),
-       *pid =(char*)malloc(sizeof(char)*PID_SIZE),
-       *tid =(char*)malloc(sizeof(char)*TID_SIZE),
-       *p   =(char*)malloc(sizeof(char)*P_SIZE),
-       *dur =(char*)malloc(sizeof(char)*DUR_SIZE),
-       *final=(char*)malloc(sizeof(char)*(INST_SIZE+PID_SIZE+TID_SIZE+P_SIZE+DUR_SIZE+6*SEP_SIZE+2));
+	int final_size = INST_SIZE+PID_SIZE+TID_SIZE+P_SIZE+DUR_SIZE+6*SEP_SIZE+2;
+  char *inst =(char*)malloc(sizeof(char)*INST_SIZE),
+       *pid  =(char*)malloc(sizeof(char)*PID_SIZE),
+       *tid  =(char*)malloc(sizeof(char)*TID_SIZE),
+       *p    =(char*)malloc(sizeof(char)*P_SIZE),
+       *dur  =(char*)malloc(sizeof(char)*DUR_SIZE),
+       *final=(char*)malloc(sizeof(char)*final_size);
 
   inst[INST_SIZE]='\0';   memset(inst,' ',INST_SIZE);
   numToString(inst, info.inst,TRUE);
@@ -204,6 +205,7 @@ char *buildLogString( sauna_log_t info ){
   numToString(dur,info.dur,FALSE);
 
   sprintf(final,"%s | %s | %s | %s : %c | %s | %s\n",inst,pid,tid,p,info.g,dur,info.tip);
+	final[final_size]='\0';
   free(inst);
   free(pid);
   free(tid);
