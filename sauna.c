@@ -12,10 +12,19 @@ static pthread_cond_t  cond_var = PTHREAD_COND_INITIALIZER;
 char *buildLogString( sauna_log_t info );
 sauna_log_t requestToStruct( request_t *req);
 
+/**
+ * @brief Whether there are seats available in the sauna
+ * @return 1 if there are seats, 0 otherwise
+ */
 inline static char hasSeats(){
   return num_seats_available > 0;
 }
 
+/**
+ * @brief Whether the request is of the same gender as the sauna
+ * @param[in] request The request to check gender
+ * @return 1 if same gender, 0 otherwise
+ */
 inline static char sameGender(request_t *request) {
   return curr_gender == 0 || curr_gender == request->gender;
 }
@@ -82,6 +91,11 @@ int openFifos(int *rejected_fd, int *entry_fd) {
   return (*rejected_fd < 0 || *entry_fd < 0);
 }
 
+/**
+ * @brief Waits for the designated amount of time and then leaves the array, leaving a spot opne
+ * @param[in] pos Position of the array of the request to be treated
+ * @return 0
+ */
 void* waitAndLeave( void *pos ){
   usleep( info.requests[*(uint32 *)pos]->time_spent);
   pthread_mutex_lock(&mutex);
@@ -125,12 +139,21 @@ void putOnHold() {
   pthread_mutex_unlock(&mutex);
 }
 
+/**
+ * @brief Rejects a request
+ * @param[out] request Request to be rejected
+ */
 void reject(request_t *request){
   request->status = (REJECTED | SEND);
   request->times_rejected++;
 }
 
-
+/**
+ * @brief The main function
+ * @param[in] argc How many arguments were passed into the program
+ * @param[in] argv The arguments passed into the program
+ * @return 0 if all OK, 1 otherwise
+ */
 int main(int argc, char *argv[]) {
   gettimeofday(&init_time, NULL);
   int rejected_fd;
@@ -183,7 +206,12 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-
+/**
+ * @brief Builds the log file line based on struct
+ * @param[in] info Information to be used to generate the log file line
+ * @return String to be printed to the log file
+ * @detail The various columns of the information printed have a fixed size which can be easily altered in the file utils.h
+ */
 char *buildLogString( sauna_log_t info ){
 	int final_size = INST_SIZE+PID_SIZE+TID_SIZE+P_SIZE+DUR_SIZE+6*SEP_SIZE+2;
   char *inst =(char*)malloc(sizeof(char)*INST_SIZE),
@@ -213,6 +241,11 @@ char *buildLogString( sauna_log_t info ){
   return final;
 }
 
+/**
+ * @brief Converts from struct request_t to struct sauna_log_t
+ * @param[in] req The request to be converted
+ * @return Struct that will be used to print to the log file
+ */
 sauna_log_t requestToStruct(request_t *req){
   sauna_log_t tmp;
   tmp.inst = microDifference(init_time);

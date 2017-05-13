@@ -10,6 +10,11 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 char *buildLogString( gen_log_t info );
 gen_log_t requestToStruct( request_t *req, char* tip);
 
+/**
+ * @brief Whether or not the given request was already handled
+ * @param[in] request Request to check if it was handled
+ * @return 1 if it was handled, 0 otherwise
+ */
 inline static char isHandled(request_t *request){
 	return (request->status & TREATED) || (request->status & DISCARDED);
 }
@@ -29,9 +34,11 @@ int init(int argc , char *argv[], uint64 *max_time) {
 	}
 	srand(time(NULL));
 	num_requests = strtol(argv[1],NULL,10);
+	//initializes the statistics arrays
 	info.n_requests[0] = num_requests; info.n_requests[1] = 0; info.n_requests[2] = 0;
 	info.n_rejects[0] = 0; info.n_rejects[1] = 0; info.n_rejects[2] = 0;
 	info.n_misc[0] = 0; info.n_misc[1] = 0; info.n_misc[2] = 0;
+
 	*max_time  = strtol(argv[2],NULL,10);
 	info.requests = malloc(num_requests * sizeof(request_t*));
 	for (uint32 i = 0 ; i < num_requests ; i++)
@@ -73,7 +80,6 @@ void sendRequests(int entry_fd){
 					if( info.requests[i]->status & SEND ) {
 						char *tmp = buildLogString(requestToStruct(info.requests[i], "REQUEST"));
 						write(log_fd,tmp,sizeof(char)*strlen(tmp));
-						printf("%s",tmp);
 
 						pthread_mutex_lock(&mutex);
 						info.requests[i]->status = 0;
@@ -86,7 +92,6 @@ void sendRequests(int entry_fd){
 
 					char *tmp = buildLogString(requestToStruct(info.requests[i], "DISCARDED"));
 					write(log_fd,tmp,sizeof(char)*strlen(tmp));
-					printf("%s",tmp);
 
 					info.n_misc[0]++;
 					info.n_misc[ (info.requests[i]->gender == 'M' ? 1 : 2) ]++;
@@ -119,7 +124,6 @@ void* handleResults(void* rejected_fd){
 				info.n_rejects[0]++;
 				char *tmp = buildLogString(requestToStruct(&request, "REJECTED"));
 				write(log_fd,tmp,sizeof(char)*strlen(tmp));
-				printf("%s",tmp);
 			}
 			pthread_mutex_lock(&mutex);
 			memmove(info.requests[request.serial_number], &request, sizeof(request_t));
@@ -213,6 +217,12 @@ char *buildLogString( gen_log_t info ){
 	return final;
 }
 
+/**
+ * @brief Converts from struct request_t to struct gen_log_t
+ * @param[in] req Request to be converted
+ * @param[in] tip What to put in the type of log
+ * @return The struct that will be used to print to the log file
+ */
 gen_log_t requestToStruct( request_t *req, char* tip){
 	gen_log_t tmp;
 	tmp.inst = microDifference(init_time);

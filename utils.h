@@ -2,17 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <errno.h>
-
 #include <fcntl.h>
 #include <unistd.h>
-#include <signal.h>
 #include <pthread.h>
 
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/syscall.h>
 
 #define REJECTED_PATH  "/tmp/rejected"
 #define ENTRY_PATH     "/tmp/entry"
@@ -31,6 +27,7 @@
 #define TRUE    1
 #define FALSE   0
 
+//Size of each log file column
 #define INST_SIZE   10
 #define PID_SIZE    5
 #define TID_SIZE    18
@@ -236,6 +233,11 @@ void numToString(char *string , long int number, char decimal_flag){
   }
 }
 
+/**
+ * @brief Counts the microseconds difference between initial time and current time
+ * @param[in] init Initial time
+ * @return How many microseconds passed
+ */
 uint64 microDifference(struct timeval init){
   struct timeval curr;
   gettimeofday(&curr,NULL);
