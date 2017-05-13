@@ -6,7 +6,8 @@ static uint32 num_seats_available;
 static char curr_gender;
 static int log_fd;
 static struct timeval init_time;
-static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutex    = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t  cond_var = PTHREAD_COND_INITIALIZER;
 
 char *buildLogString( sauna_log_t info );
 sauna_log_t requestToStruct( request_t *req);
@@ -88,6 +89,7 @@ void* waitAndLeave( void *pos ){
   	if(num_seats_available == num_seats)
     	curr_gender = 0;
   	info.requests[*(uint32 *)pos] = NULL;
+    pthread_cond_signal(&cond_var);
   pthread_mutex_unlock(&mutex);
   return (void*)0;
 }
@@ -118,11 +120,9 @@ void enter( request_t *request ) {
  * @brief Puts a request waiting for a free seat
  */
 void putOnHold() {
-  while(1) {
-    for(uint32 i = 0; i < num_seats; i++)
-      if(info.requests[i] == NULL)
-        return;
-    }
+  pthread_mutex_lock(&mutex);
+    pthread_cond_wait(&cond_var,&mutex);
+  pthread_mutex_unlock(&mutex);
 }
 
 void reject(request_t *request){
