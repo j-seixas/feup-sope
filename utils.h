@@ -25,19 +25,19 @@
 #define TREATED     BIT(2)
 #define DISCARDED   BIT(3)
 
-#define GEN_LOGFILE "/tmp/ger."
+#define GEN_LOGFILE   "/tmp/ger."
 #define SAUNA_LOGFILE "/tmp/bal."
 
-#define TRUE 1
-#define FALSE 0
+#define TRUE    1
+#define FALSE   0
 
-#define INST_SIZE 10
-#define PID_SIZE 5
-#define TID_SIZE 18
-#define P_SIZE 6
-#define DUR_SIZE 4
-#define TIP_SIZE 10
-#define SEP_SIZE 3
+#define INST_SIZE   10
+#define PID_SIZE    5
+#define TID_SIZE    18
+#define P_SIZE      6
+#define DUR_SIZE    4
+#define TIP_SIZE    15
+#define SEP_SIZE    3
 
 typedef unsigned int uint32;
 typedef unsigned long int uint64;

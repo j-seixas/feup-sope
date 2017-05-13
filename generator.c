@@ -71,9 +71,9 @@ void sendRequests(int entry_fd){
 			if( !isHandled(info.requests[i]) ) {
 				if( info.requests[i]->times_rejected < 3 ) {
 					if( info.requests[i]->status & SEND ) {
-						char *tmp = buildLogString(requestToStruct(info.requests[i], "PEDIDO"));
+						char *tmp = buildLogString(requestToStruct(info.requests[i], "REQUEST"));
 						write(log_fd,tmp,sizeof(char)*strlen(tmp));
-						printf("%s\n",tmp);
+						printf("%s",tmp);
 
 						pthread_mutex_lock(&mutex);
 						info.requests[i]->status = 0;
@@ -84,9 +84,9 @@ void sendRequests(int entry_fd){
 					pthread_mutex_lock(&mutex);
 					info.requests[i]->status = DISCARDED;
 
-					char *tmp = buildLogString(requestToStruct(info.requests[i], "DESCARTADO"));
+					char *tmp = buildLogString(requestToStruct(info.requests[i], "DISCARDED"));
 					write(log_fd,tmp,sizeof(char)*strlen(tmp));
-					printf("%s\n",tmp);
+					printf("%s",tmp);
 
 					info.n_misc[0]++;
 					info.n_misc[ (info.requests[i]->gender == 'M' ? 1 : 2) ]++;
@@ -119,7 +119,7 @@ void* handleResults(void* rejected_fd){
 				info.n_rejects[0]++;
 				char *tmp = buildLogString(requestToStruct(&request, "REJECTED"));
 				write(log_fd,tmp,sizeof(char)*strlen(tmp));
-				printf("%s\n",tmp);
+				printf("%s",tmp);
 			}
 			pthread_mutex_lock(&mutex);
 			memmove(info.requests[request.serial_number], &request, sizeof(request_t));
@@ -198,15 +198,14 @@ char *buildLogString( gen_log_t info ){
 
 	inst[INST_SIZE]='\0'; 	memset(inst,' ',INST_SIZE);
 	numToString(inst, info.inst,TRUE);
-	pid[PID_SIZE]='\0'; 	memset(pid,' ',PID_SIZE);
+	pid[PID_SIZE]='\0'; 		memset(pid,' ',PID_SIZE);
 	numToString(pid, info.pid,FALSE);
-	p[P_SIZE]='\0'; 		memset(p,' ',P_SIZE);
+	p[P_SIZE]='\0'; 				memset(p,' ',P_SIZE);
 	numToString(p, info.p,FALSE);
-	dur[DUR_SIZE]='\0';		memset(dur,' ',DUR_SIZE);
+	dur[DUR_SIZE]='\0';			memset(dur,' ',DUR_SIZE);
 	numToString(dur,info.dur,FALSE);
 
 	sprintf(final,"%s | %s | %s : %c | %s | %s\n",inst,pid,p,info.g,dur,info.tip);
-	final[final_size] = '\0';
 	free(inst);
 	free(pid);
 	free(p);
