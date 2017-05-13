@@ -114,8 +114,8 @@ void* waitAndLeave( void *pos ){
  */
 void enter( request_t *request ) {
   pthread_mutex_lock(&mutex);
-  num_seats_available--;
-  curr_gender = request->gender;
+  	num_seats_available--;
+  	curr_gender = request->gender;
   pthread_mutex_unlock(&mutex);
 	uint32 *i = (uint32 *)malloc(sizeof(uint32));
   for(*i = 0; *i < num_seats; (*i)++){
@@ -127,7 +127,10 @@ void enter( request_t *request ) {
     }
   }
   pthread_t thread;
-  pthread_create(&thread, NULL, waitAndLeave, i);
+  if ( pthread_create(&thread, NULL, waitAndLeave, i) != 0){
+		perror("SAU - Error creating waitAndLeave thread! ");
+		exit(6);
+	}
 }
 
 /**
@@ -155,25 +158,33 @@ void reject(request_t *request){
  * @return 0 if all OK, 1 otherwise
  */
 int main(int argc, char *argv[]) {
-  gettimeofday(&init_time, NULL);
+  if( gettimeofday(&init_time, NULL) != 0){
+		perror("SAU - Error getting initial time of day! ");
+		exit(1);
+	}
   int rejected_fd;
   int entry_fd;
   request_t *request = malloc(sizeof(request_t));
 
   if ( init(argc, argv) )
-    exit(1);
+    exit(3);
+
   createFifos();
 
-  if ( openFifos(&rejected_fd, &entry_fd) )
-    exit(1);
+  if ( openFifos(&rejected_fd, &entry_fd) ){
+		perror("SAU - Error opening FIFO! ");
+	  exit(4);
+	}
 
   while( readRequest(request, entry_fd) ) {
 		info.n_requests[0]++;
 		info.n_requests[ (request->gender == 'M' ? 1 : 2) ]++;
 
     char *tmp = buildLogString(requestToStruct(request));
-    write(log_fd,tmp,sizeof(char)*strlen(tmp));
-    printf("%s",tmp);
+    if ( write(log_fd,tmp,sizeof(char)*strlen(tmp)) < 0){
+			perror("SAU - Error writing received to log! ");
+			exit(5);
+		}
 
     if( sameGender(request) ) {
       if ( hasSeats() )
@@ -191,13 +202,21 @@ int main(int argc, char *argv[]) {
 		}
 
     tmp = buildLogString(requestToStruct(request));
-    write(log_fd,tmp,sizeof(char)*strlen(tmp));
-    printf("%s",tmp);
+    if ( write(log_fd,tmp,sizeof(char)*strlen(tmp)) < 0){
+			perror("SAU - Error writing status to log!");
+			exit(7);
+		}
 
-    sendResult(request, rejected_fd);
+
+    if ( sendResult(request, rejected_fd) == 0){
+			perror("SAU - Error writing to FIFO! ");
+			exit(8);
+		}
   }
-  if ( closeFifos(rejected_fd, entry_fd) )
-    exit(1);
+  if ( closeFifos(rejected_fd, entry_fd) ){
+		perror("SAU - Error closing FIFO! ");
+	  exit(9);
+	}
 
 	printf("	RECEIVED\nTOTAL = %d | M= %d | F= %d\n",info.n_requests[0],info.n_requests[1],info.n_requests[2]);
 	printf("	REJECTED\nTOTAL = %d | M= %d | F= %d\n",info.n_rejects[0],info.n_rejects[1],info.n_rejects[2]);
