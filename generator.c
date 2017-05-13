@@ -34,15 +34,13 @@ int init(int argc , char *argv[], uint64 *max_time) {
 	}
 	srand(time(NULL));
 	num_requests = strtol(argv[1],NULL,10);
+	*max_time  = strtol(argv[2],NULL,10);
 	//initializes the statistics arrays
 	info.n_requests[0] = num_requests; info.n_requests[1] = 0; info.n_requests[2] = 0;
 	info.n_rejects[0] = 0; info.n_rejects[1] = 0; info.n_rejects[2] = 0;
 	info.n_misc[0] = 0; info.n_misc[1] = 0; info.n_misc[2] = 0;
 
-	*max_time  = strtol(argv[2],NULL,10);
 	info.requests = malloc(num_requests * sizeof(request_t*));
-	for (uint32 i = 0 ; i < num_requests ; i++)
-		info.requests[i] = NULL;
 
 	if ((log_fd = openLogFile( GEN_LOGFILE )) == -1){
 		perror("Error opening generator log file ");
@@ -78,24 +76,31 @@ void sendRequests(int entry_fd){
 			if( !isHandled(info.requests[i]) ) {
 				if( info.requests[i]->times_rejected < 3 ) {
 					if( info.requests[i]->status & SEND ) {
-						char *tmp = buildLogString(requestToStruct(info.requests[i], "REQUEST"));
-						write(log_fd,tmp,sizeof(char)*strlen(tmp));
-
 						pthread_mutex_lock(&mutex);
-						info.requests[i]->status = 0;
+							info.requests[i]->status = 0;
 						pthread_mutex_unlock(&mutex);
-						write(entry_fd, info.requests[i], sizeof(request_t));
+						if (write(entry_fd, info.requests[i], sizeof(request_t)) < 0){
+							perror("GEN - Error writing to FIFO! ");
+							exit(7);
+						}
+						char *tmp = buildLogString(requestToStruct(info.requests[i], "REQUEST"));
+						if ( write(log_fd,tmp,sizeof(char)*strlen(tmp)) < 0) {
+							perror("GEN - Error writing request to log! ");
+							exit(8);
+						}
 					}
 				} else {
 					pthread_mutex_lock(&mutex);
-					info.requests[i]->status = DISCARDED;
+						info.requests[i]->status = DISCARDED;
 
-					char *tmp = buildLogString(requestToStruct(info.requests[i], "DISCARDED"));
-					write(log_fd,tmp,sizeof(char)*strlen(tmp));
-
+						char *tmp = buildLogString(requestToStruct(info.requests[i], "DISCARDED"));
+						if ( write(log_fd,tmp,sizeof(char)*strlen(tmp)) < 0){
+							perror("GEN - Error writing discarded to log! ");
+							exit(9);
+						}
+					pthread_mutex_unlock(&mutex);
 					info.n_misc[0]++;
 					info.n_misc[ (info.requests[i]->gender == 'M' ? 1 : 2) ]++;
-					pthread_mutex_unlock(&mutex);
 				}
 				all_handled = 0;
 			}
@@ -118,16 +123,23 @@ void* handleResults(void* rejected_fd){
 		}
 		if ( all_handled )
 			return 0;
-		if(read(*((int*)rejected_fd), &request, sizeof(request_t)) == sizeof(request_t)){
+		if( read(*((int*)rejected_fd), &request, sizeof(request_t)) == sizeof(request_t) ){
 			if( request.status & REJECTED){
 				info.n_rejects[ (request.gender == 'M' ? 1 : 2) ]++;
 				info.n_rejects[0]++;
 				char *tmp = buildLogString(requestToStruct(&request, "REJECTED"));
-				write(log_fd,tmp,sizeof(char)*strlen(tmp));
+				if ( write(log_fd,tmp,sizeof(char)*strlen(tmp)) < 0){
+					perror("GEN - Error writing rejected to log file! ");
+					exit(5);
+				}
 			}
 			pthread_mutex_lock(&mutex);
-			memmove(info.requests[request.serial_number], &request, sizeof(request_t));
+				memmove(info.requests[request.serial_number], &request, sizeof(request_t));
 			pthread_mutex_unlock(&mutex);
+		}
+		else{
+			perror("GEN - Error reading from FIFO! ");
+			exit(3);
 		}
 	}
 }
@@ -156,28 +168,38 @@ void generateRequests(uint64 max_time) {
  * @return 0 if all OK, 1 otherwise
  */
 int main (int argc , char *argv[] ){
-	gettimeofday(&init_time,NULL);
+	if ( gettimeofday(&init_time,NULL) != 0){
+		perror("GEN - Error reading initial time of day! ");
+		exit(1);
+	}
 	int rejected_fd;
 	int entry_fd;
 	uint64 max_time;
 
 	if( init(argc, argv, &max_time) )
-		exit(1);
+		exit(3);
 
 	createFifos();
 
-	if( openFifos(&rejected_fd, &entry_fd) )
-		exit(1);
+	if( openFifos(&rejected_fd, &entry_fd) ){
+		perror("GEN - Error opening FIFO! ");
+		exit(4);
+	}
 
 	generateRequests(max_time);
 	pthread_t thread;
 	pthread_create(&thread, NULL, handleResults, &rejected_fd);
 	sendRequests(entry_fd);
 
-	pthread_join(thread, NULL);
+	if ( pthread_join(thread, NULL) != 0){
+		perror("GEN - Error joining thread! ");
+		exit(10);
+	}
 
-	if( closeFifos(rejected_fd, entry_fd) )
-		exit(1);
+	if( closeFifos(rejected_fd, entry_fd) ){
+		perror("GEN - Error closing FIFO! ");
+		exit(11);
+	}
 
 
 	printf("	GENERATED\nTOTAL = %d | M= %d | F= %d\n",info.n_requests[0],info.n_requests[1],info.n_requests[2]);
