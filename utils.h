@@ -171,7 +171,7 @@ int createFifos() {
  *  @brief      Closes the entry and rejected fifos
  *  @param[in]  rejected_fd  The file descriptor of the rejected fifoo
  *  @param[in]  entry_fd     The file descriptor of the entry fifo
- *  @return     Returns whether or not the fifos were closed
+ *  @return     0 if closed successfuly, -1 otherwise
  */
 int closeFifos(int rejected_fd, int entry_fd) {
   int result = 0;
