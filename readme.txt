@@ -6,7 +6,7 @@ Group Elements:
 Implementation Details:
   The thread implementation was POSIX's (pthread) and to avoid race conditions between them we used its mutex API.
 First, the mutex variable had to be declared and initialized: 'static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;'.
-Then, every time there was a need to guarantee multiple exclusion we wrote the critical zone in between the lock call 'pthread_mutex_lock(&mutex);'
+Then, every time there was the need to guarantee multiple exclusion we wrote the critical zone in between the lock call 'pthread_mutex_lock(&mutex);'
 and the unlock call 'pthread_mutex_unlock(&mutex);'.
   Since when a user from the same gender as the current users' had to wait for a free spot when there was none, there was a need to constantly know whether
 or not there was already a free spot. To avoid busy waiting we decided to implement a condition variable.
