@@ -137,7 +137,7 @@ void* handleResults(void* rejected_fd){
 				memmove(info.requests[request.serial_number], &request, sizeof(request_t));
 			pthread_mutex_unlock(&mutex);
 		}
-		else{
+		else if(errno != EAGAIN && errno != EWOULDBLOCK){
 			perror("GEN - Error reading from FIFO! ");
 			exit(3);
 		}
